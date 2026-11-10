@@ -82,6 +82,28 @@ function replaceSource(source, edits) {
   return result + source.slice(cursor);
 }
 
+function remapOffset(offset, edits) {
+  return offset + edits.reduce((shift, edit) => (
+    edit.end <= offset ? shift + edit.value.length - (edit.end - edit.start) : shift
+  ), 0);
+}
+
+function remapInstances(instances, edits) {
+  return instances.map((instance) => ({
+    ...instance,
+    startOffset: remapOffset(instance.startOffset, edits),
+    endOffset: remapOffset(instance.endOffset, edits),
+    rootRanges: instance.rootRanges.map((range) => ({
+      startOffset: remapOffset(range.startOffset, edits),
+      endOffset: remapOffset(range.endOffset, edits),
+    })),
+    scopeRanges: instance.scopeRanges.map((range) => ({
+      start: remapOffset(range.start, edits),
+      end: remapOffset(range.end, edits),
+    })),
+  }));
+}
+
 function removeDirectiveAttributes(startTag, node, directives) {
   const locations = node.sourceCodeLocation.attrs ?? {};
   const removals = directives.map((directive) => {
@@ -246,5 +268,7 @@ export function emitFragmentScripts(html, context) {
       value: `${startTag.slice(0, insertion)} ${ROOT_ATTRIBUTE}="${instance.id}"${startTag.slice(insertion)}`,
     });
   }
-  return replaceSource(html, edits);
+  const output = replaceSource(html, edits);
+  context.fragmentInstances = remapInstances(instances, edits);
+  return output;
 }

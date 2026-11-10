@@ -230,3 +230,18 @@ test("static fragments and data-only pages receive no DOMinion runtime JavaScrip
   assert.match(output, /<script type="application\/json">\{"feature":"native"\}<\/script>/);
   assert.doesNotMatch(output, /data-dominion-root|\(\(\)=>\{/);
 });
+
+test("script compilation preserves fragment style ownership", { skip: !browserPath }, async (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", "<dominion-widget></dominion-widget>");
+  writeProjectFile(root, "shared/widget.html", `<section>
+<script>root.dataset.ready = "true";</script>
+<style>.widget-label { color: rgb(255, 0, 0) }</style>
+<p class="widget-label">Styled</p>
+</section>`);
+
+  const dom = await buildAndReadBrowserDom(root);
+
+  assert.match(dom, /<section data-dominion-root="fragment-\d+" data-dominion-scope="fragment-\d+" data-ready="true">/);
+  assert.match(dom, /<p class="widget-label">Styled<\/p>/);
+});

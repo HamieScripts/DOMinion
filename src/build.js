@@ -4,6 +4,7 @@ import parseSrcset from "parse-srcset";
 import { parse, serialize } from "parse5";
 import { expandSharedFragments } from "./fragments.js";
 import { emitFragmentScripts } from "./scripts.js";
+import { generatePageCss as generateTailwindCss } from "./styles.js";
 
 const URL_ATTRIBUTES = new Set([
   "action",
@@ -222,7 +223,9 @@ export async function buildProject({ rootDir = process.cwd(), basePath = "", pip
   const stages = {
     expandFragments: pipeline.expandFragments ?? (async (html, context) => expandSharedFragments(html, rootDir, context)),
     emitScripts: pipeline.emitScripts ?? (async (html, context) => emitFragmentScripts(html, context)),
-    generatePageCss: pipeline.generatePageCss ?? (async (html) => html),
+    generatePageCss: pipeline.generatePageCss ?? (async (html, context) => (
+      generateTailwindCss(html, rootDir, context.fragmentInstances)
+    )),
   };
   const normalizedBasePath = normalizeBasePath(basePath || "/");
   const outputDir = path.join(rootDir, "dist");
