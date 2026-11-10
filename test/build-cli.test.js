@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:http";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildProject } from "../src/build.js";
+import { startDevServer } from "../src/dev.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = path.join(projectRoot, "bin", "dominion.js");
@@ -27,6 +29,30 @@ function runBuild(root, ...args) {
     cwd: root,
     encoding: "utf8",
   });
+}
+
+function runInit(root, ...args) {
+  return spawnSync(process.execPath, [cliPath, "init", ...args], {
+    cwd: root,
+    encoding: "utf8",
+  });
+}
+
+async function waitFor(check, message, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await check();
+    if (result) {
+      return result;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.fail(message);
+}
+
+async function getText(url) {
+  const response = await fetch(url);
+  return { status: response.status, text: await response.text() };
 }
 
 function findChromiumBrowser() {
@@ -55,6 +81,143 @@ function findChromiumBrowser() {
 function stripGeneratedStyles(html) {
   return html.replace(/<style>[\s\S]*?<\/style>/g, "");
 }
+
+test("init scaffolds a buildable native multipage project", (t) => {
+  const root = createProject(t);
+
+  const initResult = runInit(root);
+
+  assert.equal(initResult.status, 0, initResult.stderr || initResult.error?.message);
+  for (const directory of ["src", "shared", "public"]) {
+    assert.ok(existsSync(path.join(root, directory)), `${directory}/ exists`);
+  }
+  assert.ok(existsSync(path.join(root, "tailwind.css")));
+  assert.ok(existsSync(path.join(root, "dominion.config.json")));
+  const packageConfig = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+  assert.equal(packageConfig.scripts.build, "dominion build");
+  assert.equal(packageConfig.scripts.dev, "dominion dev");
+
+  const buildResult = runBuild(root);
+
+  assert.equal(buildResult.status, 0, buildResult.stderr || buildResult.error?.message);
+  const home = stripGeneratedStyles(readFileSync(path.join(root, "dist/index.html"), "utf8"));
+  const about = stripGeneratedStyles(readFileSync(path.join(root, "dist/about/index.html"), "utf8"));
+  assert.match(home, /<nav[^>]*aria-label="Main navigation"/);
+  assert.doesNotMatch(home, /dominion-navigation/);
+  assert.match(home, /Welcome to DOMinion/);
+  assert.match(about, /About this example/);
+  assert.match(readFileSync(path.join(root, "dist/index.html"), "utf8"), /\.bg-brand/);
+  assert.ok(existsSync(path.join(root, "dist/images/mark.svg")));
+});
+
+test("init refuses existing scaffold files unless --force is explicit", (t) => {
+  const root = createProject(t);
+  const firstResult = runInit(root);
+  assert.equal(firstResult.status, 0, firstResult.stderr || firstResult.error?.message);
+  writeProjectFile(root, "src/index.html", "<h1>Keep this until authorized</h1>\n");
+  writeProjectFile(root, "src/custom.html", "<h1>Unrelated page</h1>\n");
+
+  const refusedResult = runInit(root);
+
+  assert.notEqual(refusedResult.status, 0);
+  assert.match(refusedResult.stderr, /Refusing to overwrite existing project files/);
+  assert.match(refusedResult.stderr, /--force/);
+  assert.equal(readFileSync(path.join(root, "src/index.html"), "utf8"), "<h1>Keep this until authorized</h1>\n");
+
+  const forcedResult = runInit(root, "--force");
+
+  assert.equal(forcedResult.status, 0, forcedResult.stderr || forcedResult.error?.message);
+  assert.match(readFileSync(path.join(root, "src/index.html"), "utf8"), /Welcome to DOMinion/);
+  assert.equal(readFileSync(path.join(root, "src/custom.html"), "utf8"), "<h1>Unrelated page</h1>\n");
+});
+
+test("init refuses to write scaffold files through a directory symlink", (t) => {
+  const root = createProject(t);
+  const externalRoot = mkdtempSync(path.join(os.tmpdir(), "dominion-init-target-"));
+  t.after(() => rmSync(externalRoot, { recursive: true, force: true }));
+  try {
+    symlinkSync(externalRoot, path.join(root, "src"), process.platform === "win32" ? "junction" : "dir");
+  } catch (error) {
+    if (["EACCES", "EPERM", "ENOSYS"].includes(error.code)) {
+      t.skip(`Directory symlinks are unavailable: ${error.message}`);
+      return;
+    }
+    throw error;
+  }
+
+  const result = runInit(root, "--force");
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Refusing to write project files through a symbolic link: src/);
+  assert.equal(existsSync(path.join(externalRoot, "index.html")), false);
+  assert.equal(existsSync(path.join(root, "package.json")), false);
+});
+
+test("dev serves production output and rebuilds all watched project inputs", async (t) => {
+  const root = createProject(t);
+  const initResult = runInit(root);
+  assert.equal(initResult.status, 0, initResult.stderr || initResult.error?.message);
+  writeProjectFile(root, "dominion.config.json", JSON.stringify({ basePath: "/preview/project/" }));
+
+  const occupiedServer = createServer();
+  await new Promise((resolve) => occupiedServer.listen(0, "127.0.0.1", resolve));
+  const occupiedPort = occupiedServer.address().port;
+  const dev = await startDevServer({ rootDir: root, basePath: "/preview/project/", port: occupiedPort });
+  const originalStderrWrite = process.stderr.write;
+  const buildErrors = [];
+  process.stderr.write = function (chunk, ...args) {
+    if (String(chunk).includes("dominion dev: build failed:")) {
+      buildErrors.push(String(chunk));
+    }
+    return originalStderrWrite.call(this, chunk, ...args);
+  };
+  t.after(async () => {
+    process.stderr.write = originalStderrWrite;
+    await dev.close();
+    await new Promise((resolve) => occupiedServer.close(resolve));
+  });
+
+  const preview = new URL(dev.url);
+  const prefix = `${preview.origin}/preview/project`;
+  assert.notEqual(Number(preview.port), occupiedPort);
+
+  const home = await getText(`${prefix}/`);
+  const about = await getText(`${prefix}/about/`);
+  const asset = await getText(`${prefix}/images/mark.svg`);
+  assert.equal(home.status, 200);
+  assert.match(home.text, /href="\/preview\/project\/about\/"/);
+  assert.equal(about.status, 200);
+  assert.match(about.text, /About this example/);
+  assert.equal(asset.status, 200);
+  assert.match(asset.text, /DOMinion mark/);
+  assert.equal((await getText(`${prefix}/missing.html`)).status, 404);
+  assert.equal((await getText(`${preview.origin}/`)).status, 404);
+
+  writeProjectFile(root, "src/stale.html", "<h1>Temporary route</h1>\n");
+  await waitFor(async () => (await getText(`${prefix}/stale.html`)).status === 200, "new page was not rebuilt");
+  writeProjectFile(root, "src/about/index.html", "<!doctype html><title>About</title><h1>Page rebuilt</h1>\n");
+  await waitFor(async () => (await getText(`${prefix}/about/`)).text.includes("Page rebuilt"), "page edit was not rebuilt");
+  writeProjectFile(root, "shared/navigation.html", "<header><nav>Fragment rebuilt</nav></header>\n");
+  await waitFor(async () => (await getText(`${prefix}/`)).text.includes("Fragment rebuilt"), "fragment edit was not rebuilt");
+  writeProjectFile(root, "public/images/mark.svg", "updated asset\n");
+  await waitFor(async () => (await getText(`${prefix}/images/mark.svg`)).text === "updated asset\n", "asset edit was not copied");
+  writeProjectFile(root, "src/about/index.html", "<!doctype html><title>About</title><h1 class=\"text-preview\">Theme rebuilt</h1>\n");
+  await waitFor(async () => (await getText(`${prefix}/about/`)).text.includes("Theme rebuilt"), "page edit was not rebuilt");
+  writeProjectFile(root, "tailwind.css", "@theme { --color-preview: #123456; }\n");
+  await waitFor(async () => (await getText(`${prefix}/about/`)).text.includes(".text-preview{color:var(--color-preview)}"), "theme edit was not rebuilt");
+
+  const goodHome = await getText(`${prefix}/`);
+  writeProjectFile(root, "src/index.html", "<dominion-missing></dominion-missing>\n");
+  await waitFor(() => buildErrors.length > 0, "build failure was not reported to stderr");
+  const preservedHome = await getText(`${prefix}/`);
+  assert.equal(preservedHome.status, 200);
+  assert.equal(preservedHome.text, goodHome.text);
+
+  rmSync(path.join(root, "src/stale.html"));
+  writeProjectFile(root, "src/index.html", "<!doctype html><title>Restored</title><h1>Recovered</h1>\n");
+  await waitFor(async () => (await getText(`${prefix}/stale.html`)).status === 404, "deleted page left a stale route");
+  await waitFor(async () => (await getText(`${prefix}/`)).text.includes("Recovered"), "preview did not recover after the build error");
+});
 
 test("CLI shows help and exits nonzero for an invalid deployment base path", (t) => {
   const root = createProject(t);
