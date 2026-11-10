@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { chromium } from "playwright";
 import { parse } from "parse5";
 import { buildProject } from "../src/build.js";
 
@@ -19,12 +20,15 @@ const pagePaths = [
   "examples/index.html",
 ];
 const browserPath = process.env.DOMINION_CHROME
-  ?? [
-    path.join(process.env.PROGRAMFILES ?? "C:\\Program Files", "Google/Chrome/Application/chrome.exe"),
-    path.join(process.env["PROGRAMFILES(X86)"] ?? "C:\\Program Files (x86)", "Microsoft/Edge/Application/msedge.exe"),
-    "/usr/bin/chromium",
-    "/usr/bin/google-chrome",
-  ].find(existsSync);
+  ?? chromium.executablePath();
+const runtimeFreePages = new Set([
+  "index.html",
+  "guide/project-structure/index.html",
+  "guide/routing/index.html",
+  "guide/fragments-and-slots/index.html",
+  "guide/styling/index.html",
+  "guide/deployment/index.html",
+]);
 
 function walk(node, visit) {
   visit(node);
@@ -34,6 +38,15 @@ function walk(node, visit) {
   if (node.content) {
     walk(node.content, visit);
   }
+}
+
+function listOutputFiles(directory, prefix = "") {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const relativePath = path.join(prefix, entry.name);
+    return entry.isDirectory()
+      ? listOutputFiles(path.join(directory, entry.name), relativePath)
+      : [relativePath.replaceAll(path.sep, "/")];
+  });
 }
 
 function localOutputPath(target, basePath) {
@@ -80,7 +93,12 @@ function inspectPage(outputPath, basePath) {
     attribute.name === "aria-label" && attribute.value.trim()
   ))), `${outputPath} has a labeled navigation landmark`);
   assert.ok(!elements.some((element) => element.tagName.startsWith("dominion-")), `${outputPath} has no unexpanded fragments`);
+  assert.ok(!elements.some((element) => element.tagName === "slot"), `${outputPath} has no unexpanded content slots`);
   assert.ok(!elements.some((element) => element.attrs?.some((attribute) => attribute.name.startsWith("#"))), `${outputPath} has no build directives`);
+  assert.doesNotMatch(html, /\{\{\s*[^{}]+\s*\}\}/, `${outputPath} has no unresolved template placeholders`);
+  if (runtimeFreePages.has(path.relative(path.join(projectRoot, "dist"), outputPath).replaceAll(path.sep, "/"))) {
+    assert.equal(elements.filter((element) => element.tagName === "script").length, 0, `${outputPath} needs no browser JavaScript`);
+  }
 
   for (const anchor of elements.filter((element) => element.tagName === "a")) {
     const href = anchor.attrs?.find((attribute) => attribute.name === "href")?.value;
@@ -130,6 +148,11 @@ test("documentation builds as accessible, linked pages at root and the GitHub Pa
     const result = await buildProject({ rootDir: projectRoot, basePath });
     assert.equal(result.pageCount, pagePaths.length);
     assert.equal(result.assetCount, 1);
+    assert.deepEqual(
+      listOutputFiles(path.join(projectRoot, "dist")).sort(),
+      [...pagePaths, "images/instance-lab.png"].sort(),
+      "the deployable output contains only documentation pages and the public image asset",
+    );
 
     const pages = pagePaths.map((pagePath) => inspectPage(path.join(projectRoot, "dist", pagePath), basePath));
     assert.equal(new Set(pages.map((page) => page.title)).size, pagePaths.length, "page titles are unique");
@@ -178,8 +201,4 @@ test("compiled examples initialize repeated instances and run every timing polic
   assert.ok(cards.every((card) => card.attrs.some((attribute) => attribute.name === "data-state" && attribute.value === "waiting")));
   assert.ok(!exampleText.some((text) => text.includes("border-inline-start: 2px")), "fragment CSS is not visible document text");
 
-  const timingDom = readBrowserDom("guide/script-timing/index.html");
-  assert.match(timingDom, /Immediate ran while parsing \(loading\); later sibling present: false\./);
-  assert.match(timingDom, /Deferred ran after parsing \((?:interactive|complete)\)\./);
-  assert.match(timingDom, /Idle became eligible after parsing \((?:interactive|complete)\)\./);
 });

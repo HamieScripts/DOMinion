@@ -5,15 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
+import { chromium } from "playwright";
 import { buildProject } from "../src/build.js";
 
 const browserPath = process.env.DOMINION_CHROME
-  ?? [
-    path.join(process.env.PROGRAMFILES ?? "", "Google/Chrome/Application/chrome.exe"),
-    path.join(process.env["PROGRAMFILES(X86)"] ?? "", "Google/Chrome/Application/chrome.exe"),
-    "/usr/bin/chromium",
-    "/usr/bin/google-chrome",
-  ].find(existsSync);
+  ?? chromium.executablePath();
 
 function createProject(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), "dominion-scripts-"));

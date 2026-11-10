@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { chromium } from "playwright";
 import { buildProject } from "../src/build.js";
 import { startDevServer } from "../src/dev.js";
 
@@ -58,6 +59,7 @@ async function getText(url) {
 function findChromiumBrowser() {
   const candidates = [
     process.env.DOMINION_BROWSER,
+    chromium.executablePath(),
     process.env.CHROME_BIN,
     process.env.EDGE_BIN,
     process.env.CHROMIUM_BIN,
