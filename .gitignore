@@ -2,3 +2,4 @@ node_modules/
 dist/
 .dist-stage-*/
 .dist-backup-*/
+test-results/
