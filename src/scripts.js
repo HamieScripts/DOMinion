@@ -1,4 +1,5 @@
 import { parse } from "parse5";
+import { walkTree } from "./tree.js";
 
 const SCRIPT_MIME_TYPES = new Set([
   "application/ecmascript",
@@ -34,16 +35,6 @@ export function scriptKind(node) {
   return null;
 }
 
-function walk(node, visit) {
-  visit(node);
-  for (const child of node.childNodes ?? []) {
-    walk(child, visit);
-  }
-  if (node.content) {
-    walk(node.content, visit);
-  }
-}
-
 function sourceError(instance, node, message) {
   const location = node.sourceCodeLocation;
   const sourceLocation = location?.startLine
@@ -61,7 +52,7 @@ function ownedInstance(instances, offset) {
 function findAuthoredRoots(tree, instance) {
   const rootOffsets = new Set(instance.rootRanges.map((range) => range.startOffset));
   const roots = [];
-  walk(tree, (node) => {
+  walkTree(tree, (node) => {
     if (node.tagName
       && !["script", "style"].includes(node.tagName)
       && rootOffsets.has(node.sourceCodeLocation?.startOffset)) {
@@ -180,7 +171,7 @@ export function emitFragmentScripts(html, context) {
 
   const tree = parse(html, { sourceCodeLocationInfo: true });
   const scripts = [];
-  walk(tree, (node) => {
+  walkTree(tree, (node) => {
     if (node.tagName !== "script") {
       return;
     }
@@ -250,7 +241,7 @@ export function emitFragmentScripts(html, context) {
       throw new Error(`${instance.sourcePath}: unable to locate the authored root for fragment script binding; include chain: ${instance.includeChain.join(" -> ")}`);
     }
     let markerCollision;
-    walk(tree, (node) => {
+    walkTree(tree, (node) => {
       if (node.attrs?.some((attribute) => attribute.name === ROOT_ATTRIBUTE && attribute.value === instance.id)) {
         markerCollision = node;
       }

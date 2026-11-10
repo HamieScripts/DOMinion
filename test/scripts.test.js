@@ -1,27 +1,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildProject } from "../src/build.js";
+import { createProject, writeProjectFile } from "./helpers/project.js";
 
 const browserPath = process.env.DOMINION_CHROME
   ?? chromium.executablePath();
-
-function createProject(t) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "dominion-scripts-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  return root;
-}
-
-function writeProjectFile(root, relativePath, contents) {
-  const filePath = path.join(root, relativePath);
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, contents);
-}
 
 async function buildAndReadBrowserDom(root) {
   await buildProject({ rootDir: root });
@@ -39,7 +27,7 @@ async function buildAndReadBrowserDom(root) {
 }
 
 test("each repeated fragment script receives its own root", { skip: !browserPath }, async (t) => {
-  const root = createProject(t);
+  const root = createProject(t, "scripts");
   writeProjectFile(root, "src/index.html", `<!doctype html>
 <dominion-card></dominion-card>
 <dominion-card></dominion-card>
@@ -62,7 +50,7 @@ root.textContent = "badge ready";
 });
 
 test("a sibling script binds to the fragment's authored DOM root", { skip: !browserPath }, async (t) => {
-  const root = createProject(t);
+  const root = createProject(t, "scripts");
   writeProjectFile(root, "src/index.html", "<dominion-widget></dominion-widget>");
   writeProjectFile(root, "shared/widget.html", `<script>root.querySelector("p").textContent = "ready";</script>
 <section><p>waiting</p></section>`);
@@ -73,7 +61,7 @@ test("a sibling script binds to the fragment's authored DOM root", { skip: !brow
 });
 
 test("fragment timing directives preserve parse timing and deferred source order", { skip: !browserPath }, async (t) => {
-  const root = createProject(t);
+  const root = createProject(t, "scripts");
   writeProjectFile(root, "src/index.html", `<!doctype html>
 <script>
 window.requestIdleCallback = callback => {
@@ -114,7 +102,7 @@ root.dataset.idleSawLater = String(Boolean(root.querySelector("#later")));
 });
 
 test("idle scheduling falls back to a timer when requestIdleCallback is unavailable", { skip: !browserPath }, async (t) => {
-  const root = createProject(t);
+  const root = createProject(t, "scripts");
   writeProjectFile(root, "src/index.html", `<!doctype html>
 <script>window.requestIdleCallback = undefined;</script>
 <dominion-idle></dominion-idle>
@@ -129,7 +117,7 @@ root.querySelector("p").textContent = "idle fallback ran";
 });
 
 test("inline module scripts keep native module semantics and data blocks stay untouched", { skip: !browserPath }, async (t) => {
-  const root = createProject(t);
+  const root = createProject(t, "scripts");
   writeProjectFile(root, "src/index.html", `<!doctype html>
 <dominion-module></dominion-module>
 `);
@@ -197,7 +185,7 @@ test("script timing errors identify the fragment and correction", async (t) => {
   ];
 
   for (const testCase of cases) {
-    const root = createProject(t);
+    const root = createProject(t, "scripts");
     writeProjectFile(root, "src/index.html", "<dominion-widget></dominion-widget>");
     writeProjectFile(root, "shared/widget.html", `<div>${testCase.script}</div>`);
 
@@ -211,7 +199,7 @@ test("script timing errors identify the fragment and correction", async (t) => {
 });
 
 test("static fragments and data-only pages receive no DOMinion runtime JavaScript", async (t) => {
-  const root = createProject(t);
+  const root = createProject(t, "scripts");
   writeProjectFile(root, "src/index.html", `<dominion-static></dominion-static>
 <script type="application/json">{"feature":"native"}</script>
 `);
@@ -228,7 +216,7 @@ test("static fragments and data-only pages receive no DOMinion runtime JavaScrip
 });
 
 test("script compilation preserves fragment style ownership", { skip: !browserPath }, async (t) => {
-  const root = createProject(t);
+  const root = createProject(t, "scripts");
   writeProjectFile(root, "src/index.html", "<dominion-widget></dominion-widget>");
   writeProjectFile(root, "shared/widget.html", `<section>
 <script>root.dataset.ready = "true";</script>

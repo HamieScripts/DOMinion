@@ -9,21 +9,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildProject } from "../src/build.js";
 import { startDevServer } from "../src/dev.js";
+import { createProject, writeProjectFile } from "./helpers/project.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = path.join(projectRoot, "bin", "dominion.js");
-
-function createProject(t) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "dominion-build-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  return root;
-}
-
-function writeProjectFile(root, relativePath, contents) {
-  const filePath = path.join(root, relativePath);
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  writeFileSync(filePath, contents);
-}
 
 function runBuild(root, ...args) {
   return spawnSync(process.execPath, [cliPath, "build", ...args], {
@@ -440,7 +429,7 @@ test("build expands nested and repeated shared fragment instances", (t) => {
   assert.doesNotMatch(output, /<dominion-/);
 });
 
-test("nested fragment slots belong to their own fragment definition", (t) => {
+test("nested content slots belong to their own shared fragment", (t) => {
   const root = createProject(t);
   writeProjectFile(root, "src/index.html", "<dominion-shell></dominion-shell>");
   writeProjectFile(root, "shared/shell.html", `<main><dominion-inner><p slot="body">Inner content</p></dominion-inner></main>`);
@@ -669,10 +658,10 @@ test("build reports source-aware fragment and slot contract errors", (t) => {
       error: /only one slot may be marked #default/,
     },
     {
-      name: "fallback content",
+      name: "slot declaration content",
       page: "<dominion-card></dominion-card>",
       files: { "shared/card.html": "<article><slot name=\"body\">Fallback</slot></article>" },
-      error: /slot fallback content is not supported/,
+      error: /content inside a slot declaration is not supported/,
     },
   ];
 
