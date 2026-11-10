@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { buildProject } from "../src/build.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = path.join(projectRoot, "bin", "dominion.js");
@@ -58,6 +59,283 @@ test("build preserves page paths, copies public assets, and excludes shared sour
   assert.equal(readFileSync(path.join(root, "dist/about/index.html"), "utf8"), "<h1>About</h1>\n");
   assert.equal(readFileSync(path.join(root, "dist/images/logo.svg"), "utf8"), "<svg></svg>\n");
   assert.equal(existsSync(path.join(root, "dist/shared/navigation.html")), false);
+});
+
+test("build expands shared fragment includes into published HTML", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", "<main><dominion-notice></dominion-notice></main>\n");
+  writeProjectFile(root, "shared/notice.html", "<aside>Heads up</aside>\n");
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  assert.match(output, /<aside>Heads up<\/aside>/);
+  assert.doesNotMatch(output, /dominion-notice/);
+});
+
+test("build expands nested and repeated shared fragment instances", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", "<dominion-card></dominion-card><dominion-card></dominion-card>\n");
+  writeProjectFile(root, "shared/card.html", "<article><dominion-badge></dominion-badge></article>");
+  writeProjectFile(root, "shared/badge.html", "<b>New</b>");
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  assert.equal((output.match(/<article><b>New<\/b><\/article>/g) ?? []).length, 2);
+  assert.doesNotMatch(output, /<dominion-/);
+});
+
+test("nested fragment slots belong to their own fragment definition", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", "<dominion-shell></dominion-shell>");
+  writeProjectFile(root, "shared/shell.html", `<main><dominion-inner><p slot="body">Inner content</p></dominion-inner></main>`);
+  writeProjectFile(root, "shared/inner.html", `<section><slot name="body" #required></slot></section>`);
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  assert.match(output, /<main><section><p>Inner content<\/p><\/section><\/main>/);
+  assert.doesNotMatch(output, /<slot|slot="|#required/);
+});
+
+test("build distributes named and default slot content in source order", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", `<dominion-callout>
+  <h2 slot="heading">Heading</h2>
+  <p>First</p>
+  <p slot="body">Targeted</p>
+  <p>Last</p>
+</dominion-callout>
+`);
+  writeProjectFile(root, "shared/callout.html", `<aside><header><slot name="heading" #required></slot></header>
+  <main><slot name="body" #default #required></slot></main></aside>
+`);
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  assert.match(output, /<header><h2>Heading<\/h2><\/header>/);
+  assert.ok(output.indexOf("First") < output.indexOf("Targeted"));
+  assert.ok(output.indexOf("Targeted") < output.indexOf("Last"));
+  assert.doesNotMatch(output, /slot="(?:heading|body)"|#(?:default|required)|<slot/);
+});
+
+test("build preserves fragment placement in document head and table content", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", `<!doctype html><html><head><title>Home</title><dominion-head-meta></dominion-head-meta></head>
+<body><table><tbody><dominion-row></dominion-row></tbody></table></body></html>`);
+  writeProjectFile(root, "shared/head-meta.html", `<meta name="description" content="A page">`);
+  writeProjectFile(root, "shared/row.html", `<tr><td>Row content</td></tr>`);
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  assert.match(output, /<head><title>Home<\/title><meta name="description" content="A page"><\/head>/);
+  assert.match(output, /<table><tbody><tr><td>Row content<\/td><\/tr><\/tbody><\/table>/);
+  assert.doesNotMatch(output, /dominion-(?:head-meta|row)/);
+});
+
+test("build distributes supplied table rows without relocating them", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", `<dominion-table>
+  <tr><td>Supplied row</td></tr>
+</dominion-table>`);
+  writeProjectFile(root, "shared/table.html", `<table><tbody><slot name="rows" #default #required></slot></tbody></table>`);
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  assert.match(output, /<table><tbody>\s*<tr><td>Supplied row<\/td><\/tr>\s*<\/tbody><\/table>/);
+  assert.doesNotMatch(output, /<slot|dominion-table/);
+});
+
+test("build passes fragment instance ownership to script and CSS stages", async (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", "<dominion-shell><div><dominion-inner></dominion-inner></div></dominion-shell>");
+  writeProjectFile(root, "shared/shell.html", "<main><slot name=\"body\" #default></slot></main>");
+  writeProjectFile(root, "shared/inner.html", "<i>Inner</i>");
+  let scriptContext;
+  let cssContext;
+
+  await buildProject({
+    rootDir: root,
+    pipeline: {
+      emitScripts: async (html, context) => {
+        scriptContext = context;
+        return html;
+      },
+      generatePageCss: async (html, context) => {
+        cssContext = context;
+        return html;
+      },
+    },
+  });
+
+  assert.equal(scriptContext, cssContext);
+  assert.ok(Array.isArray(cssContext.fragmentInstances));
+  assert.equal(cssContext.fragmentInstances.length, 2);
+  const [shell, inner] = cssContext.fragmentInstances;
+  assert.equal(shell.name, "shell");
+  assert.equal(inner.name, "inner");
+  assert.equal(inner.parentInstanceId, shell.id);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  const shellScope = shell.scopeRanges.map((range) => output.slice(range.start, range.end)).join("");
+  assert.match(shellScope, /<main><div>/);
+  assert.match(shellScope, /<\/div><\/main>/);
+  assert.doesNotMatch(shellScope, /<i>Inner<\/i>/);
+});
+
+test("build validates authored roots for static and behavior fragments", (t) => {
+  const staticRoot = createProject(t);
+  writeProjectFile(staticRoot, "src/index.html", "<dominion-widget></dominion-widget>");
+  writeProjectFile(staticRoot, "shared/widget.html", "<div>First</div><div>Second</div>");
+
+  const staticResult = runBuild(staticRoot);
+
+  assert.equal(staticResult.status, 0, staticResult.stderr || staticResult.error?.message);
+  assert.match(readFileSync(path.join(staticRoot, "dist/index.html"), "utf8"), /<div>First<\/div><div>Second<\/div>/);
+
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", "<dominion-widget></dominion-widget>\n");
+  writeProjectFile(root, "shared/widget.html", `<div>First</div><div>Second</div>
+<script>run()</script>`);
+
+  const result = runBuild(root);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /shared\/widget\.html.*exactly one authored root/);
+  assert.match(result.stderr, /src\/index\.html.*shared\/widget\.html/);
+
+  const styleRoot = createProject(t);
+  writeProjectFile(styleRoot, "src/index.html", "<dominion-widget></dominion-widget>");
+  writeProjectFile(styleRoot, "shared/widget.html", "<div>First</div><div>Second</div><style>.widget { color: red }</style>");
+
+  const styleResult = runBuild(styleRoot);
+
+  assert.notEqual(styleResult.status, 0);
+  assert.match(styleResult.stderr, /shared\/widget\.html.*exactly one authored root/);
+});
+
+test("required slots validate structure rather than visible content", (t) => {
+  const emptyRoot = createProject(t);
+  writeProjectFile(emptyRoot, "src/index.html", `<dominion-panel>
+  <!-- comments and formatting whitespace do not fill a required slot -->
+</dominion-panel>`);
+  writeProjectFile(emptyRoot, "shared/panel.html", `<section><slot name="body" #required></slot></section>`);
+
+  const emptyResult = runBuild(emptyRoot);
+
+  assert.notEqual(emptyResult.status, 0);
+  assert.match(emptyResult.stderr, /shared\/panel\.html:1:.*required slot is missing content: body/);
+  assert.match(emptyResult.stderr, /include chain: src\/index\.html -> shared\/panel\.html/);
+
+  const suppliedRoot = createProject(t);
+  writeProjectFile(suppliedRoot, "src/index.html", `<dominion-panel><template slot="template"></template><div slot="hidden" hidden></div><span slot="empty"></span></dominion-panel>`);
+  writeProjectFile(suppliedRoot, "shared/panel.html", `<section><slot name="template" #required></slot><slot name="hidden" #required></slot><slot name="empty" #required></slot><slot name="optional"></slot></section>`);
+
+  const suppliedResult = runBuild(suppliedRoot);
+
+  assert.equal(suppliedResult.status, 0, suppliedResult.stderr || suppliedResult.error?.message);
+  const output = readFileSync(path.join(suppliedRoot, "dist/index.html"), "utf8");
+  assert.match(output, /<template><\/template><div hidden><\/div><span><\/span>/);
+  assert.doesNotMatch(output, /<slot|slot="|#required/);
+});
+
+test("build reports source-aware fragment and slot contract errors", (t) => {
+  const cases = [
+    {
+      name: "missing fragment",
+      page: "<dominion-missing></dominion-missing>",
+      files: {},
+      error: /src\/index\.html:1:.*shared\/missing\.html/,
+    },
+    {
+      name: "invalid fragment name",
+      page: "<dominion-bad_name></dominion-bad_name>",
+      files: {},
+      error: /invalid shared fragment name.*src\/index\.html/,
+    },
+    {
+      name: "placeholder attributes",
+      page: "<dominion-card class=\"wide\"></dominion-card>",
+      files: { "shared/card.html": "<article>Card</article>" },
+      error: /inclusion placeholders cannot have attributes/,
+    },
+    {
+      name: "missing explicit close",
+      page: "<dominion-card>",
+      files: { "shared/card.html": "<article>Card</article>" },
+      error: /must have an explicit closing tag/,
+    },
+    {
+      name: "cycle",
+      page: "<dominion-a></dominion-a>",
+      files: {
+        "shared/a.html": "<dominion-b></dominion-b>",
+        "shared/b.html": "<dominion-a></dominion-a>",
+      },
+      error: /circular shared fragment inclusion.*shared\/a\.html.*shared\/b\.html/,
+    },
+    {
+      name: "slot diagnostic uses its original definition line",
+      page: "<dominion-card></dominion-card>",
+      files: {
+        "shared/card.html": "<dominion-inner></dominion-inner>\n<slot name=\"body\" #required></slot>",
+        "shared/inner.html": "<div>\n<p>First line</p>\n<p>Second line</p>\n</div>",
+      },
+      error: /shared\/card\.html:2:.*required slot is missing content: body/,
+    },
+    {
+      name: "unknown destination",
+      page: "<dominion-card><p slot=\"missing\">Text</p></dominion-card>",
+      files: { "shared/card.html": "<article><slot name=\"body\"></slot></article>" },
+      error: /unknown slot destination: missing/,
+    },
+    {
+      name: "meaningful content without default",
+      page: "<dominion-card><p>Text</p></dominion-card>",
+      files: { "shared/card.html": "<article><slot name=\"body\"></slot></article>" },
+      error: /meaningful supplied content has no matching slot or #default/,
+    },
+    {
+      name: "duplicate names",
+      page: "<dominion-card></dominion-card>",
+      files: { "shared/card.html": "<article><slot name=\"body\"></slot><slot name=\"body\"></slot></article>" },
+      error: /duplicate slot name: body/,
+    },
+    {
+      name: "multiple defaults",
+      page: "<dominion-card></dominion-card>",
+      files: { "shared/card.html": "<article><slot name=\"one\" #default></slot><slot name=\"two\" #default></slot></article>" },
+      error: /only one slot may be marked #default/,
+    },
+    {
+      name: "fallback content",
+      page: "<dominion-card></dominion-card>",
+      files: { "shared/card.html": "<article><slot name=\"body\">Fallback</slot></article>" },
+      error: /slot fallback content is not supported/,
+    },
+  ];
+
+  for (const testCase of cases) {
+    const root = createProject(t);
+    writeProjectFile(root, "src/index.html", testCase.page);
+    for (const [filePath, contents] of Object.entries(testCase.files)) {
+      writeProjectFile(root, filePath, contents);
+    }
+
+    const result = runBuild(root);
+
+    assert.notEqual(result.status, 0, testCase.name);
+    assert.match(result.stderr, testCase.error, testCase.name);
+  }
 });
 
 test("build applies the configured deployment prefix only to site-root URLs", (t) => {

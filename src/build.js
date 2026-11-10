@@ -2,6 +2,7 @@ import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 
 import path from "node:path";
 import parseSrcset from "parse-srcset";
 import { parse, serialize } from "parse5";
+import { expandSharedFragments } from "./fragments.js";
 
 const URL_ATTRIBUTES = new Set([
   "action",
@@ -218,7 +219,7 @@ async function replaceOutput(outputDir, planned) {
 
 export async function buildProject({ rootDir = process.cwd(), basePath = "", pipeline = {} } = {}) {
   const stages = {
-    expandFragments: pipeline.expandFragments ?? (async (html) => html),
+    expandFragments: pipeline.expandFragments ?? (async (html, context) => expandSharedFragments(html, rootDir, context)),
     emitScripts: pipeline.emitScripts ?? (async (html) => html),
     generatePageCss: pipeline.generatePageCss ?? (async (html) => html),
   };
