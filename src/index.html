@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Practical documentation for building HTML-first static sites with DOMinion.">
+  <title>Getting Started | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-3xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 01</p>
+        <h1 id="getting-started" class="font-display text-4xl leading-tight sm:text-5xl">Getting started</h1>
+        <p class="mt-4 max-w-2xl text-lg leading-8 text-muted">DOMinion turns authored HTML pages and reusable fragments into complete static documents. Node.js is for building and previewing; the published site is served as ordinary HTML, CSS, assets, and any JavaScript you choose to author.</p>
+
+        <details class="my-7 border-y border-line py-3 lg:hidden">
+          <summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary>
+          <nav class="pt-3" aria-label="On this page">
+            <ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#requirements">Requirements</a></li><li><a class="text-moss underline" href="#create-a-project">Create a project</a></li><li><a class="text-moss underline" href="#first-build">Build and browse</a></li><li><a class="text-moss underline" href="#next">Next steps</a></li></ul>
+          </nav>
+        </details>
+
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="requirements">
+          <h2 id="requirements" class="font-display text-2xl">Requirements</h2>
+          <p class="mt-3 leading-7 text-muted">Use Node.js 20 or newer to initialize, build, and run a local preview. Browsers and static hosts do not need Node.js or a DOMinion server.</p>
+        </section>
+
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="create-a-project">
+          <h2 id="create-a-project" class="font-display text-2xl">Create a project</h2>
+          <dominion-example-frame>
+            <span slot="title">Initialize, install, and start the preview</span>
+            <pre><code>mkdir field-notes
+cd field-notes
+npx dominion init
+npm install
+npm run dev</code></pre>
+            <span slot="caption">The scaffold creates <code>src/</code>, <code>shared/</code>, <code>public/</code>, a Tailwind theme, and a root deployment configuration.</span>
+          </dominion-example-frame>
+          <p class="leading-7 text-muted">The preview watches the source directories, rebuilds into <code>dist/</code>, and serves that output locally. The starter can be replaced with this documentation site's examples as you learn the pieces.</p>
+        </section>
+
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="first-build">
+          <h2 id="first-build" class="font-display text-2xl">Build before you browse</h2>
+          <p class="mt-3 leading-7 text-muted">A file under <code>src/</code> may contain DOMinion include tags and script timing directives. Those are source syntax, not browser features. Build first; open or publish files from <code>dist/</code>, never the unexpanded source tree.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>npm run build
+# Then serve or publish dist/</code></pre>
+          <dominion-callout>
+            <span slot="label">Keep the output boundary</span>
+            <p>Generated pages are self-contained HTML documents. Shared source files are expanded during the build and are not separate routes.</p>
+          </dominion-callout>
+        </section>
+
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="next">
+          <h2 id="next" class="font-display text-2xl">Choose a path</h2>
+          <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+            <li><a class="block border border-line bg-white p-4 font-semibold text-moss underline-offset-4 hover:border-moss hover:underline focus-visible:outline-2 focus-visible:outline-coral" href="/guide/project-structure/">Map the project files <span aria-hidden="true">&rarr;</span></a></li>
+            <li><a class="block border border-line bg-white p-4 font-semibold text-moss underline-offset-4 hover:border-moss hover:underline focus-visible:outline-2 focus-visible:outline-coral" href="/guide/fragments-and-slots/">Compose fragments and slots <span aria-hidden="true">&rarr;</span></a></li>
+            <li><a class="block border border-line bg-white p-4 font-semibold text-moss underline-offset-4 hover:border-moss hover:underline focus-visible:outline-2 focus-visible:outline-coral" href="/guide/styling/">Set a theme and scope CSS <span aria-hidden="true">&rarr;</span></a></li>
+            <li><a class="block border border-line bg-white p-4 font-semibold text-moss underline-offset-4 hover:border-moss hover:underline focus-visible:outline-2 focus-visible:outline-coral" href="/examples/">Run the examples <span aria-hidden="true">&rarr;</span></a></li>
+          </ul>
+        </section>
+      </article>
+      <aside class="hidden lg:block">
+        <nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page">
+          <p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p>
+          <ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#requirements">Requirements</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#create-a-project">Create a project</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#first-build">Build and browse</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#next">Next steps</a></li></ul>
+        </nav>
+      </aside>
+    </div>
+    <footer class="mt-14 border-t border-line pt-5 text-sm text-muted"><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/guide/project-structure/">Next: Project structure &rarr;</a></footer>
+  </main>
+</body>
+</html>

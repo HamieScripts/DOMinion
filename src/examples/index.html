@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runnable Examples | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-4xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 08</p>
+        <h1 id="runnable-examples" class="font-display text-4xl leading-tight sm:text-5xl">Runnable examples</h1>
+        <p class="mt-4 max-w-3xl text-lg leading-8 text-muted">These pages include the same fragments described in the guides. Build the project, then use each state button to see an instance update its own DOM root.</p>
+        <details class="my-7 border-y border-line py-3 lg:hidden"><summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary><nav class="pt-3" aria-label="On this page"><ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#instance-lab">Repeated and nested instances</a></li><li><a class="text-moss underline" href="#source">Source fragments</a></li><li><a class="text-moss underline" href="#runtime-states">Runtime states</a></li></ul></nav></details>
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="instance-lab">
+          <h2 id="instance-lab" class="font-display text-2xl">Repeated and nested instances</h2>
+          <p class="mt-3 leading-7 text-muted">The gallery includes the same card fragment twice. Each card includes a nested accent fragment, uses named and default slots, and keeps independent state and script scope.</p>
+          <figure class="my-6 overflow-hidden border border-line bg-white">
+            <img class="block h-auto w-full" src="/images/instance-lab.png" alt="Screenshot of two independent DOMinion fragment instances with nested accents and slot content">
+            <figcaption class="border-t border-line px-4 py-3 text-sm text-muted">A rendered capture of the instance lab; the live example below keeps each card interactive.</figcaption>
+          </figure>
+          <div class="my-6 border border-line bg-white p-4 sm:p-6"><dominion-demo-gallery></dominion-demo-gallery></div>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="source">
+          <h2 id="source" class="font-display text-2xl">Source fragments</h2>
+          <dominion-example-frame>
+            <span slot="title">shared/demo-card.html</span>
+            <pre><code>&lt;article class="demo-card"&gt;
+  &lt;h3&gt;&lt;slot name="title" #required&gt;&lt;/slot&gt;&lt;/h3&gt;
+  &lt;div data-state-output aria-live="polite"&gt;&lt;/div&gt;
+  &lt;button type="button" data-next-state&gt;Cycle state&lt;/button&gt;
+  &lt;div&gt;&lt;slot name="body" #default #required&gt;&lt;/slot&gt;&lt;/div&gt;
+  &lt;dominion-demo-stamp&gt;
+    &lt;span&gt;accent inherited across the boundary&lt;/span&gt;
+  &lt;/dominion-demo-stamp&gt;
+&lt;/article&gt;
+&lt;style&gt;/* scoped selectors; custom properties inherit */&lt;/style&gt;
+&lt;script&gt;/* update this instance through root */&lt;/script&gt;</code></pre>
+            <span slot="caption">The authored fragment has one root because it contains both behavior and custom CSS.</span>
+          </dominion-example-frame>
+          <dominion-example-frame>
+            <span slot="title">shared/demo-gallery.html</span>
+            <pre><code>&lt;section&gt;
+  &lt;dominion-demo-card&gt;
+    &lt;span slot="title"&gt;First instance&lt;/span&gt;
+    &lt;p&gt;Default slot content&lt;/p&gt;
+  &lt;/dominion-demo-card&gt;
+  &lt;dominion-demo-card&gt;
+    &lt;span slot="title"&gt;Second instance&lt;/span&gt;
+    &lt;p&gt;Independent root and state&lt;/p&gt;
+  &lt;/dominion-demo-card&gt;
+&lt;/section&gt;</code></pre>
+            <span slot="caption">The gallery source includes repeated card instances, and each card includes a nested stamp. The build removes all include tags.</span>
+          </dominion-example-frame>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="runtime-states">
+          <h2 id="runtime-states" class="font-display text-2xl">Runtime states</h2>
+          <p class="mt-3 leading-7 text-muted">Open a card's <strong>Cycle state</strong> control. Its script selects among statically authored templates for waiting, ready, empty, and error states. The output shows each card initialized independently; the complete class names stay in HTML so Tailwind can generate their styles at build time.</p>
+          <ul class="mt-4 flex flex-wrap gap-2 text-xs font-bold uppercase"><li class="border border-sky px-2 py-1 text-sky">Waiting</li><li class="border border-moss px-2 py-1 text-moss">Ready</li><li class="border border-brass px-2 py-1 text-brass">Empty</li><li class="border border-coral px-2 py-1 text-coral">Error</li></ul>
+        </section>
+      </article>
+      <aside class="hidden lg:block"><nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page"><p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p><ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#instance-lab">Repeated and nested instances</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#source">Source fragments</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#runtime-states">Runtime states</a></li></ul></nav></aside>
+    </div>
+    <footer class="mt-14 flex justify-between border-t border-line pt-5 text-sm"><a class="text-moss underline-offset-4 hover:underline" href="/guide/deployment/">&larr; Deployment</a><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/">Back to Getting started &rarr;</a></footer>
+  </main>
+</body>
+</html>

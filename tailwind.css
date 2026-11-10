@@ -1,0 +1,22 @@
+@theme {
+  --color-paper: #f1f5f4;
+  --color-white: #ffffff;
+  --color-ink: #1d302d;
+  --color-muted: #52635c;
+  --color-line: #d3dddb;
+  --color-moss: #416d59;
+  --color-moss-dark: #264b3f;
+  --color-coral: #bf563f;
+  --color-brass: #a77a31;
+  --color-sky: #587d8d;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --font-body: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-code: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-coral);
+    outline-offset: 3px;
+  }
+}

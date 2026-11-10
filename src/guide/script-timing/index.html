@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Script Timing | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-3xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 06</p>
+        <h1 id="script-timing" class="font-display text-4xl leading-tight sm:text-5xl">Script timing</h1>
+        <p class="mt-4 text-lg leading-8 text-muted">Fragment scripts get an instance-local <code>root</code>. Timing directives decide when classic code runs; they do not defer downloading inline bytes.</p>
+        <details class="my-7 border-y border-line py-3 lg:hidden"><summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary><nav class="pt-3" aria-label="On this page"><ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#default">Default and defer</a></li><li><a class="text-moss underline" href="#immediate">Immediate</a></li><li><a class="text-moss underline" href="#idle">Idle</a></li><li><a class="text-moss underline" href="#rules">Execution rules</a></li><li><a class="text-moss underline" href="#timing-lab">Timing lab</a></li></ul></nav></details>
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="default">
+          <h2 id="default" class="font-display text-2xl">Default and <code>#defer</code></h2>
+          <p class="mt-3 leading-7 text-muted">Classic fragment scripts with no directive run after parsing, when <code>DOMContentLoaded</code> fires. <code>#defer</code> names that policy explicitly. Both preserve document source order across classic blocks.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>&lt;script&gt;
+root.querySelector("[data-message]").textContent = "Ready";
+&lt;/script&gt;</code></pre>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="immediate">
+          <h2 id="immediate" class="font-display text-2xl"><code>#immediate</code></h2>
+          <p class="mt-3 leading-7 text-muted">Immediate code runs synchronously when the parser reaches the script. It can query only markup parsed so far; later siblings are not present yet. Use it only when that parse-time constraint is intentional.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>&lt;p data-before&gt;Waiting&lt;/p&gt;
+&lt;script #immediate&gt;
+root.querySelector("[data-before]").textContent = "Seen now";
+const laterExists = Boolean(root.querySelector("[data-after]"));
+&lt;/script&gt;
+&lt;p data-after&gt;Not parsed yet&lt;/p&gt;</code></pre>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="idle">
+          <h2 id="idle" class="font-display text-2xl"><code>#idle</code></h2>
+          <p class="mt-3 leading-7 text-muted">Idle work becomes eligible after parsing. DOMinion uses <code>requestIdleCallback</code> when available and falls back to <code>setTimeout(callback, 0)</code>. It is not ordered relative to deferred scripts, and a long callback can still block the main thread.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="rules">
+          <h2 id="rules" class="font-display text-2xl">Execution rules</h2>
+          <ul class="mt-3 space-y-3 leading-7 text-muted"><li>Each classic block has a private function scope. Bindings do not leak to sibling scripts or <code>window</code>.</li><li>Modules retain native module scope and scheduling. They may omit a directive or use <code>#defer</code>; <code>#immediate</code> and <code>#idle</code> are rejected for modules.</li><li>External fragment scripts with <code>src</code> are unsupported because their source cannot receive instance-local <code>root</code> without changing loading semantics.</li><li>Use directives on executable fragment scripts only. Native <code>defer</code> does not defer an inline classic script; DOMinion removes its own source directives from generated output.</li></ul>
+          <dominion-callout><span slot="label">Scheduling is not transfer</span><p>Idle scheduling does not postpone transfer of inline script bytes. It also does not promise an ordering relationship with deferred work or make expensive work nonblocking.</p></dominion-callout>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="timing-lab">
+          <h2 id="timing-lab" class="font-display text-2xl">Timing lab</h2>
+          <p class="mt-3 leading-7 text-muted">The live block below records parser visibility and completion timing in its own root. Refresh this page to repeat the run.</p>
+          <div class="my-6 border border-line bg-white p-4 sm:p-6"><dominion-timing-lab></dominion-timing-lab></div>
+          <dominion-example-frame>
+            <span slot="title">Authoring syntax</span>
+            <pre><code>&lt;script #immediate&gt;/* parsed so far */&lt;/script&gt;
+&lt;script #defer&gt;/* after parsing, in source order */&lt;/script&gt;
+&lt;script #idle&gt;/* after parsing, idle callback or timer */&lt;/script&gt;</code></pre>
+            <span slot="caption">All three scripts in the runnable sample use one authored fragment root, but each block keeps its own private scope.</span>
+          </dominion-example-frame>
+        </section>
+      </article>
+      <aside class="hidden lg:block"><nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page"><p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p><ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#default">Default and defer</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#immediate">Immediate</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#idle">Idle</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#rules">Execution rules</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#timing-lab">Timing lab</a></li></ul></nav></aside>
+    </div>
+    <footer class="mt-14 flex justify-between border-t border-line pt-5 text-sm"><a class="text-moss underline-offset-4 hover:underline" href="/guide/styling/">&larr; Styling</a><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/guide/deployment/">Next: Deployment &rarr;</a></footer>
+  </main>
+</body>
+</html>

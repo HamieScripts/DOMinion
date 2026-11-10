@@ -1,0 +1,13 @@
+<section class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2" aria-label="Repeated fragment examples">
+  <dominion-demo-card>
+    <span slot="label">01</span>
+    <h3 id="demo-card-one" slot="title" class="m-0">Separate state, shared source</h3>
+    <p class="slot-copy">This paragraph was supplied by the page and lands in the default body slot.</p>
+    <p slot="body" class="slot-copy">This named assignment joins it in source order.</p>
+  </dominion-demo-card>
+  <dominion-demo-card>
+    <span slot="label">02</span>
+    <h3 id="demo-card-two" slot="title" class="m-0">A second instance</h3>
+    <p class="slot-copy">Each card gets its own root binding and state cycle, despite using the same fragment file.</p>
+  </dominion-demo-card>
+</section>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Styling and Themes | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-3xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 05</p>
+        <h1 id="styling-and-themes" class="font-display text-4xl leading-tight sm:text-5xl">Styling and themes</h1>
+        <p class="mt-4 text-lg leading-8 text-muted">Tailwind v4 utilities are the default. Add project tokens in one theme file, and reserve fragment-authored CSS for selectors that need native scoping.</p>
+        <details class="my-7 border-y border-line py-3 lg:hidden"><summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary><nav class="pt-3" aria-label="On this page"><ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#theme">Edit the theme</a></li><li><a class="text-moss underline" href="#states">Declare runtime states</a></li><li><a class="text-moss underline" href="#scopes">Scoped escape hatch</a></li><li><a class="text-moss underline" href="#tradeoff">Inline CSS trade-off</a></li><li><a class="text-moss underline" href="#browsers">Browser baseline</a></li></ul></nav></details>
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="theme">
+          <h2 id="theme" class="font-display text-2xl">Edit the theme</h2>
+          <p class="mt-3 leading-7 text-muted">The project-root <code>tailwind.css</code> file is imported during each page build. Define design tokens with Tailwind's <code>@theme</code>; the utilities are then available to page and fragment markup.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>@theme {
+  --color-moss: #416d59;
+  --font-display: "Iowan Old Style", Georgia, serif;
+}</code></pre>
+          <p class="mt-3 leading-7 text-muted">Use complete class names in source. DOMinion expands fragments before the Tailwind CLI scans each page, so classes in used fragments are found. Runtime-generated class names are not.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="states">
+          <h2 id="states" class="font-display text-2xl">Declare runtime states</h2>
+          <p class="mt-3 leading-7 text-muted">Every style needed after data arrives must be present in static source, including states not currently visible. A template is useful when runtime code may later choose one of several states.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>&lt;div aria-live="polite"&gt;
+  &lt;template&gt;&lt;p class="bg-sky/10 text-sky"&gt;Loading&lt;/p&gt;&lt;/template&gt;
+  &lt;template&gt;&lt;p class="bg-moss/10 text-moss"&gt;Ready&lt;/p&gt;&lt;/template&gt;
+  &lt;template&gt;&lt;p class="bg-coral/10 text-coral"&gt;Could not load&lt;/p&gt;&lt;/template&gt;
+&lt;/div&gt;</code></pre>
+          <p class="mt-3 leading-7 text-muted">Tailwind sees the classes even while each template is inactive. Keep data selection and the finite set of styles separate; do not construct class names from API values.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="scopes">
+          <h2 id="scopes" class="font-display text-2xl">Scoped escape hatch</h2>
+          <p class="mt-3 leading-7 text-muted">A fragment <code>&lt;style&gt;</code> is emitted only on pages that use that fragment. Its selectors are placed in native <code>@scope</code> rules rooted at the fragment instance's authored root.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>&lt;article class="card"&gt;
+  &lt;h2&gt;Card&lt;/h2&gt;
+  &lt;dominion-badge&gt;&lt;/dominion-badge&gt;
+&lt;/article&gt;
+&lt;style&gt;
+.card { --accent: #bf563f; border-color: var(--accent); }
+.card h2 { color: var(--accent); }
+&lt;/style&gt;</code></pre>
+          <p class="mt-3 leading-7 text-muted">The fragment scope includes its own root and supplied slot content, but nested fragment roots and their contents are excluded from the parent's selectors. Custom properties and other normal CSS inheritance still cross that boundary; this is selector containment, not Shadow DOM or a full CSS sandbox.</p>
+          <p class="mt-3 leading-7 text-muted">Utilities are in Tailwind's later <code>utilities</code> layer, so they win when they compete with fragment rules in the <code>components</code> layer. Page-authored styles remain global and unlayered.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="tradeoff">
+          <h2 id="tradeoff" class="font-display text-2xl">Page-specific inline CSS</h2>
+          <p class="mt-3 leading-7 text-muted">Each built page gets one minified style block in its document head. This keeps generated CSS page-specific and self-contained, but repeats bytes across navigations and gives the browser no separately cacheable shared stylesheet. Shared source avoids duplicating authoring; it does not remove repeated output. Measure your own navigation and cache behavior before making performance claims.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="browsers">
+          <h2 id="browsers" class="font-display text-2xl">Browser baseline</h2>
+          <p class="mt-3 leading-7 text-muted">Fragment CSS requires native <code>@scope</code>. As of November 2026, the documented minimum stable versions are Chrome and Edge 118, Firefox 146, and Safari 26.4, including their corresponding mobile engines. DOMinion does not ship a scoping polyfill or legacy fallback.</p>
+          <p class="mt-3 leading-7 text-muted">Check the current <a class="text-moss underline" href="https://developer.mozilla.org/en-US/docs/Web/CSS/@scope#browser_compatibility">MDN compatibility table</a> when setting your own support policy.</p>
+        </section>
+      </article>
+      <aside class="hidden lg:block"><nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page"><p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p><ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#theme">Edit the theme</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#states">Declare runtime states</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#scopes">Scoped escape hatch</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#tradeoff">Inline CSS trade-off</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#browsers">Browser baseline</a></li></ul></nav></aside>
+    </div>
+    <footer class="mt-14 flex justify-between border-t border-line pt-5 text-sm"><a class="text-moss underline-offset-4 hover:underline" href="/guide/fragments-and-slots/">&larr; Fragments and slots</a><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/guide/script-timing/">Next: Script timing &rarr;</a></footer>
+  </main>
+</body>
+</html>
