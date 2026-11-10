@@ -1,0 +1,20 @@
+{
+  "name": "dominion",
+  "version": "0.1.0",
+  "description": "Build-time tooling for HTML-first static websites",
+  "type": "module",
+  "bin": {
+    "dominion": "./bin/dominion.js"
+  },
+  "scripts": {
+    "build": "node bin/dominion.js build",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "parse-srcset": "^1.0.2",
+    "parse5": "^8.0.0"
+  }
+}
