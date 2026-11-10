@@ -29,6 +29,10 @@ function runBuild(root, ...args) {
   });
 }
 
+function stripGeneratedStyles(html) {
+  return html.replace(/<style>[\s\S]*?<\/style>/g, "");
+}
+
 test("CLI shows help and exits nonzero for an invalid deployment base path", (t) => {
   const root = createProject(t);
   const helpResult = spawnSync(process.execPath, [cliPath, "--help"], { encoding: "utf8" });
@@ -55,10 +59,93 @@ test("build preserves page paths, copies public assets, and excludes shared sour
   const result = runBuild(root);
 
   assert.equal(result.status, 0, result.stderr || result.error?.message);
-  assert.equal(readFileSync(path.join(root, "dist/products/item.html"), "utf8"), "<h1>Item</h1>\n<a href=\"/images/logo.svg\">Logo</a>\n");
-  assert.equal(readFileSync(path.join(root, "dist/about/index.html"), "utf8"), "<h1>About</h1>\n");
+  const item = stripGeneratedStyles(readFileSync(path.join(root, "dist/products/item.html"), "utf8"));
+  const about = stripGeneratedStyles(readFileSync(path.join(root, "dist/about/index.html"), "utf8"));
+  assert.ok(item.includes("<h1>Item</h1>\n<a href=\"/images/logo.svg\">Logo</a>\n"));
+  assert.ok(about.includes("<h1>About</h1>\n"));
   assert.equal(readFileSync(path.join(root, "dist/images/logo.svg"), "utf8"), "<svg></svg>\n");
   assert.equal(existsSync(path.join(root, "dist/shared/navigation.html")), false);
+});
+
+test("build emits minified page-specific Tailwind CSS from expanded page states and project theme", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", `<!doctype html><html><head><title>Home</title></head><body>
+<div class="text-red-600 bg-brand"></div>
+<template><div class="hidden text-amber-700"></div></template>
+</body></html>`);
+  writeProjectFile(root, "src/other.html", `<!doctype html><html><head><title>Other</title></head><body><p class="underline"></p></body></html>`);
+  writeProjectFile(root, "tailwind.css", "@theme { --color-brand: #123456; }\n");
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  for (const page of ["index.html", "other.html"]) {
+    const output = readFileSync(path.join(root, "dist", page), "utf8");
+    assert.equal(output.split("<style").length - 1, 1, page);
+    const head = output.slice(output.indexOf("<head>"), output.indexOf("</head>"));
+    assert.ok(head.includes("<style"), page);
+  }
+  const home = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  const other = readFileSync(path.join(root, "dist/other.html"), "utf8");
+  assert.ok(home.includes(".text-red-600{color:var(--color-red-600)}"));
+  assert.ok(home.includes(".bg-brand{background-color:var(--color-brand)}"));
+  assert.ok(home.includes(".text-amber-700"));
+  assert.ok(!home.includes(".underline"));
+  assert.ok(other.includes(".underline"));
+  assert.ok(!other.includes(".text-red-600"));
+  assert.ok(!other.includes(".bg-brand"));
+  assert.ok(!other.includes(".text-amber-700"));
+});
+
+test("build scopes used fragment styles to authored roots and excludes nested fragments", (t) => {
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", `<!doctype html><html><head><title>Scopes</title></head><body>
+<dominion-shell><p slot="body" class="supplied text-green-700">Supplied</p></dominion-shell>
+<dominion-shell><p slot="body">Second</p></dominion-shell>
+</body></html>`);
+  writeProjectFile(root, "shared/shell.html", `<style>.shell { color: red; --inherited: teal; } .supplied { color: green; }</style>
+<section class="shell text-blue-600"><slot name="body"></slot><dominion-inner></dominion-inner></section>`);
+  writeProjectFile(root, "shared/inner.html", `<style>.inner { color: blue; }</style><article class="inner">Nested</article>`);
+  writeProjectFile(root, "shared/unused.html", `<style>.unused { color: orange; }</style><aside class="unused">Unused</aside>`);
+
+  const result = runBuild(root);
+
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
+  const styles = [...output.matchAll(/<style>([\s\S]*?)<\/style>/g)];
+  assert.equal(styles.length, 1);
+  assert.doesNotMatch(styles[0][1].replace(/^\/\*![\s\S]*?\*\/\s*/, ""), /\r?\n/);
+  assert.equal((styles[0][1].match(/@scope\s*\(/g) ?? []).length, 4);
+  assert.ok(styles[0][1].indexOf("@layer components{") < styles[0][1].indexOf("@layer utilities{"));
+  assert.ok(styles[0][1].includes(".shell{color:red;--inherited:teal}"));
+  assert.ok(styles[0][1].includes(".text-blue-600{color:var(--color-blue-600)}"));
+  assert.ok(styles[0][1].includes(".text-green-700{color:var(--color-green-700)}"));
+  assert.ok(styles[0][1].includes(".text-blue-600{"));
+  assert.match(styles[0][1], /to\s*\(\[data-dominion-scope=/);
+  assert.ok(styles[0][1].includes("--inherited:teal"));
+  assert.ok(styles[0][1].includes("data-dominion-scope"));
+  assert.ok(!styles[0][1].includes(".unused"));
+  assert.ok(!output.includes("<style>.shell"));
+  assert.ok(output.includes('class="supplied text-green-700"'));
+  assert.ok(output.includes('class="inner"'));
+});
+
+test("build rejects nonlocal fragment CSS constructs with source context", (t) => {
+  for (const css of [
+    "@font-face { font-family: icon; src: url(icon.woff2); }",
+    "@keyframes pulse { from { opacity: 0; } to { opacity: 1; } }",
+  ]) {
+    const root = createProject(t);
+    writeProjectFile(root, "src/index.html", "<dominion-icon></dominion-icon>");
+    writeProjectFile(root, "shared/icon.html", `<style>${css}</style><span>Icon</span>`);
+
+    const result = runBuild(root);
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /shared\/icon\.html: unsupported nonlocal fragment CSS at-rule/);
+    assert.match(result.stderr, /include chain: src\/index\.html -> shared\/icon\.html/);
+    assert.equal(existsSync(path.join(root, "dist")), false);
+  }
 });
 
 test("build expands shared fragment includes into published HTML", (t) => {
@@ -136,7 +223,7 @@ test("build preserves fragment placement in document head and table content", (t
 
   assert.equal(result.status, 0, result.stderr || result.error?.message);
   const output = readFileSync(path.join(root, "dist/index.html"), "utf8");
-  assert.match(output, /<head><title>Home<\/title><meta name="description" content="A page"><\/head>/);
+  assert.match(output, /<head><title>Home<\/title><meta name="description" content="A page"><style>[\s\S]*?<\/style><\/head>/);
   assert.match(output, /<table><tbody><tr><td>Row content<\/td><\/tr><\/tbody><\/table>/);
   assert.doesNotMatch(output, /dominion-(?:head-meta|row)/);
 });
@@ -342,7 +429,7 @@ test("build applies the configured deployment prefix only to site-root URLs", (t
   const root = createProject(t);
   writeProjectFile(root, "dominion.config.json", JSON.stringify({ basePath: "/preview/project/" }));
   writeProjectFile(root, "src/guides/setup/index.html", `<!doctype html>
-<a href="/docs?lang=en#setup">Docs</a>
+<a href="/docs?lang=en#setup" class="text-red-600">Docs</a>
 <img src="/images/logo.svg?size=2#logo">
 <img srcset="/images/small.jpg 1x, /images/large.jpg 2x">
 <img srcset="data:image/gif;base64,R0lGODlhAQABAIAAAAUEBA== 1x, /images/retina.jpg 2x">
@@ -356,6 +443,8 @@ test("build applies the configured deployment prefix only to site-root URLs", (t
 
   assert.equal(result.status, 0, result.stderr || result.error?.message);
   const output = readFileSync(path.join(root, "dist/guides/setup/index.html"), "utf8");
+  assert.equal(output.split("<style").length - 1, 1);
+  assert.ok(output.includes(".text-red-600{color:var(--color-red-600)}"));
   assert.match(output, /href="\/preview\/project\/docs\?lang=en#setup"/);
   assert.match(output, /src="\/preview\/project\/images\/logo\.svg\?size=2#logo"/);
   assert.match(output, /srcset="\/preview\/project\/images\/small\.jpg 1x, \/preview\/project\/images\/large\.jpg 2x"/);
@@ -411,6 +500,6 @@ test("rebuild removes stale pages while preserving current source files", (t) =>
 
   assert.equal(result.status, 0, result.stderr || result.error?.message);
   assert.equal(existsSync(path.join(root, "dist/old.html")), false);
-  assert.equal(readFileSync(path.join(root, "dist/current.html"), "utf8"), currentPage);
+  assert.ok(stripGeneratedStyles(readFileSync(path.join(root, "dist/current.html"), "utf8")).endsWith(currentPage));
   assert.equal(readFileSync(path.join(root, "src/current.html"), "utf8"), currentPage);
 });

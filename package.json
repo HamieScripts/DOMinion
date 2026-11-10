@@ -14,7 +14,10 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@tailwindcss/cli": "^4.3.5",
     "parse-srcset": "^1.0.2",
-    "parse5": "^8.0.0"
+    "parse5": "^8.0.0",
+    "postcss": "^8.5.32",
+    "tailwindcss": "^4.3.5"
   }
 }
