@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { parse } from "parse5";
 import postcss from "postcss";
+import selectorParser from "postcss-selector-parser";
 
 const execFile = promisify(execFileCallback);
 const require = createRequire(import.meta.url);
@@ -45,6 +46,42 @@ function descendantInstances(instance, instances) {
   return descendants;
 }
 
+function includeScopeRootSelectors(stylesheet) {
+  stylesheet.walkRules((rule) => {
+    rule.selector = selectorParser((selectors) => {
+      const rootSelectors = [];
+      selectors.each((selector) => {
+        const rootMatch = selector.clone();
+        const pseudoElements = rootMatch.nodes.filter((node) => (
+          node.type === "pseudo" && (node.value.startsWith("::") || /^:(before|after|first-line|first-letter)$/i.test(node.value))
+        ));
+        for (const pseudoElement of pseudoElements) {
+          rootMatch.removeChild(pseudoElement);
+        }
+
+        const scopeArgument = selectorParser.selector();
+        scopeArgument.append(selectorParser.pseudo({ value: ":scope" }));
+        const scope = selectorParser.pseudo({ value: ":where" });
+        scope.append(scopeArgument);
+
+        const match = selectorParser.pseudo({ value: ":is" });
+        match.append(rootMatch);
+
+        const rootSelector = selectorParser.selector();
+        rootSelector.append(scope);
+        rootSelector.append(match);
+        for (const pseudoElement of pseudoElements) {
+          rootSelector.append(pseudoElement.clone());
+        }
+        rootSelectors.push(rootSelector);
+      });
+      for (const rootSelector of rootSelectors) {
+        selectors.append(rootSelector);
+      }
+    }).processSync(rule.selector);
+  });
+}
+
 function validateFragmentCss(css, instance) {
   let stylesheet;
   try {
@@ -59,6 +96,7 @@ function validateFragmentCss(css, instance) {
       throw new Error(`${instance.sourcePath}: unsupported nonlocal fragment CSS at-rule @${rule.name}; include chain: ${instance.includeChain.join(" -> ")}`);
     }
   });
+  includeScopeRootSelectors(stylesheet);
   return stylesheet.toString();
 }
 

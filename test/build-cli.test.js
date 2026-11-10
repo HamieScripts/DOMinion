@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildProject } from "../src/build.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,6 +27,29 @@ function runBuild(root, ...args) {
     cwd: root,
     encoding: "utf8",
   });
+}
+
+function findChromiumBrowser() {
+  const candidates = [
+    process.env.DOMINION_BROWSER,
+    process.env.CHROME_BIN,
+    process.env.EDGE_BIN,
+    process.env.CHROMIUM_BIN,
+    path.join(process.env.PROGRAMFILES ?? "C:\\Program Files", "Google/Chrome/Application/chrome.exe"),
+    path.join(process.env["PROGRAMFILES(X86)"] ?? "C:\\Program Files (x86)", "Microsoft/Edge/Application/msedge.exe"),
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "msedge",
+    "chrome",
+    "chromium",
+    "chromium-browser",
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const result = spawnSync(candidate, ["--version"], { encoding: "utf8", windowsHide: true });
+    if (!result.error && result.status === 0) {
+      return candidate;
+    }
+  }
 }
 
 function stripGeneratedStyles(html) {
@@ -128,6 +151,61 @@ test("build scopes used fragment styles to authored roots and excludes nested fr
   assert.ok(!output.includes("<style>.shell"));
   assert.ok(output.includes('class="supplied text-green-700"'));
   assert.ok(output.includes('class="inner"'));
+});
+
+test("fragment root selectors style the root and inherit without leaking into nested fragments", (t) => {
+  const browser = findChromiumBrowser();
+  if (!browser) {
+    t.skip("No Chromium-based browser found; set DOMINION_BROWSER to run this browser regression");
+    return;
+  }
+
+  const root = createProject(t);
+  writeProjectFile(root, "src/index.html", `<!doctype html><html><head><title>Fragment CSS</title></head><body>
+<dominion-shell></dominion-shell>
+<pre id="computed"></pre>
+<script>
+const style = (id) => getComputedStyle(document.getElementById(id));
+document.getElementById("computed").textContent = JSON.stringify({
+  rootColor: style("shell").color,
+  inheritedToken: style("child").getPropertyValue("--fragment-token").trim(),
+  childColor: style("child").color,
+  nestedColor: style("nested").color,
+  nestedOuterToken: style("nested").getPropertyValue("--outer-only").trim(),
+});
+</script>
+</body></html>`);
+  writeProjectFile(root, "shared/shell.html", `<style>
+.shell { color: red; --fragment-token: teal; }
+.child { color: blue; }
+.nested-root { color: red; --outer-only: leaked; }
+</style>
+<section class="shell" id="shell"><p class="child" id="child">Child</p><dominion-inner></dominion-inner></section>`);
+  writeProjectFile(root, "shared/inner.html", `<style>.nested-root { color: green; }</style><article class="nested-root" id="nested">Nested</article>`);
+
+  const buildResult = runBuild(root);
+  assert.equal(buildResult.status, 0, buildResult.stderr || buildResult.error?.message);
+
+  const pagePath = path.join(root, "dist/index.html");
+  const browserResult = spawnSync(browser, [
+    "--headless",
+    "--disable-gpu",
+    "--no-first-run",
+    "--no-default-browser-check",
+    `--user-data-dir=${path.join(root, "browser-profile")}`,
+    "--dump-dom",
+    pathToFileURL(pagePath).href,
+  ], { encoding: "utf8", windowsHide: true });
+
+  assert.equal(browserResult.status, 0, browserResult.stderr || browserResult.error?.message);
+  const computed = browserResult.stdout.match(/<pre id="computed">([\s\S]*?)<\/pre>/);
+  assert.ok(computed, browserResult.stdout);
+  const styles = JSON.parse(computed[1]);
+  assert.equal(styles.rootColor, "rgb(255, 0, 0)");
+  assert.equal(styles.inheritedToken, "teal");
+  assert.equal(styles.childColor, "rgb(0, 0, 255)");
+  assert.equal(styles.nestedColor, "rgb(0, 128, 0)");
+  assert.equal(styles.nestedOuterToken, "");
 });
 
 test("build rejects nonlocal fragment CSS constructs with source context", (t) => {
