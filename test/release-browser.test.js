@@ -190,15 +190,23 @@ test("published documentation works at root and project prefixes in desktop and 
       const cards = page.locator("article.demo-card");
       assert.equal(await cards.count(), 2);
       assert.deepEqual(await cards.evaluateAll((items) => items.map((item) => item.dataset.state)), ["waiting", "waiting"]);
-      const firstCardText = await cards.first().innerText();
-      for (const slottedText of [
-        "01",
-        "Separate state, shared source",
-        "This paragraph was supplied by the page and lands in the default body slot.",
-        "This named assignment joins it in source order.",
-      ]) {
-        assert.ok(firstCardText.includes(slottedText), `the first card renders its slot content: ${slottedText}`);
-      }
+      const renderedSlots = await cards.evaluateAll((instances) => instances.map((instance) => ({
+        title: instance.querySelector("h3")?.textContent.trim(),
+        body: [...instance.querySelectorAll(".slot-copy")].map((element) => element.textContent.trim()),
+      })));
+      assert.deepEqual(renderedSlots, [
+        {
+          title: "Separate state, shared source",
+          body: [
+            "This paragraph was supplied by the page and lands in the default body slot.",
+            "This named assignment joins it in source order.",
+          ],
+        },
+        {
+          title: "A second instance",
+          body: ["Each card gets its own root binding and state cycle, despite using the same fragment file."],
+        },
+      ], "named titles and default body content render in their intended instances and source order");
       const initialStyles = await cards.first().evaluate((card) => ({
         accentToken: getComputedStyle(card).getPropertyValue("--demo-accent").trim(),
         nestedAccent: getComputedStyle(card.querySelector(".demo-stamp")).color,
