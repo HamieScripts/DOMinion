@@ -6,22 +6,20 @@ import { promisify } from "node:util";
 import { parse } from "parse5";
 import postcss from "postcss";
 import selectorParser from "postcss-selector-parser";
+import { walkTree } from "./tree.js";
 
 const execFile = promisify(execFileCallback);
 const require = createRequire(import.meta.url);
 const cliPath = path.join(path.dirname(require.resolve("@tailwindcss/cli/package.json")), "dist", "index.mjs");
 const tailwindStylesPath = require.resolve("tailwindcss/index.css");
 
-function findElements(node, tagName, elements = []) {
-  if (node.tagName === tagName) {
-    elements.push(node);
-  }
-  for (const child of node.childNodes ?? []) {
-    findElements(child, tagName, elements);
-  }
-  if (node.content) {
-    findElements(node.content, tagName, elements);
-  }
+function findElements(node, tagName) {
+  const elements = [];
+  walkTree(node, (candidate) => {
+    if (candidate.tagName === tagName) {
+      elements.push(candidate);
+    }
+  });
   return elements;
 }
 
@@ -122,18 +120,11 @@ function prepareFragmentStyles(html, instances) {
   }
 
   const existingAttributeNames = new Set();
-  const collectAttributes = (node) => {
+  walkTree(tree, (node) => {
     for (const attribute of node.attrs ?? []) {
       existingAttributeNames.add(attribute.name.toLowerCase());
     }
-    for (const child of node.childNodes ?? []) {
-      collectAttributes(child);
-    }
-    if (node.content) {
-      collectAttributes(node.content);
-    }
-  };
-  collectAttributes(tree);
+  });
 
   let scopeAttribute = "data-dominion-scope";
   let suffix = 1;
@@ -143,19 +134,12 @@ function prepareFragmentStyles(html, instances) {
 
   const replacements = styles.map((style) => ({ start: style.start, end: style.end, value: "" }));
   const rootsByRange = new Map();
-  const collectRoots = (node) => {
+  walkTree(tree, (node) => {
     const location = node.sourceCodeLocation;
     if (node.tagName && location) {
       rootsByRange.set(`${location.startOffset}:${location.endOffset}`, node);
     }
-    for (const child of node.childNodes ?? []) {
-      collectRoots(child);
-    }
-    if (node.content) {
-      collectRoots(node.content);
-    }
-  };
-  collectRoots(tree);
+  });
 
   const selectorsByInstance = new Map();
   for (const instance of relevantInstances.values()) {

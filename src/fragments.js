@@ -2,18 +2,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse, parseFragment } from "parse5";
 import { scriptKind } from "./scripts.js";
+import { walkTree } from "./tree.js";
 
 const FRAGMENT_NAME = /^dominion-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
-
-function walk(node, visit) {
-  visit(node);
-  for (const child of node.childNodes ?? []) {
-    walk(child, visit);
-  }
-  if (node.content) {
-    walk(node.content, visit);
-  }
-}
 
 function parseSource(source, contextTag) {
   if (!contextTag) {
@@ -35,7 +26,7 @@ function getLocation(node) {
 
 function findIncludes(tree, source) {
   const includes = [];
-  walk(tree, (node) => {
+  walkTree(tree, (node) => {
     if (node.tagName?.startsWith("dominion")) {
       const location = getLocation(node);
       if (location?.startTag && location.endTag) {
@@ -64,7 +55,7 @@ function findIncludes(tree, source) {
 function insertionContext(tree, location) {
   let context;
   let contextWidth = Infinity;
-  walk(tree, (node) => {
+  walkTree(tree, (node) => {
     const candidate = getLocation(node);
     if (!node.tagName || !candidate || node === tree) {
       return;
@@ -152,7 +143,7 @@ function findSlots(tree, source, sourcePath, chain) {
   const names = new Map();
   let defaultSlot;
 
-  walk(tree, (node) => {
+  walkTree(tree, (node) => {
     if (node.tagName !== "slot") {
       return;
     }
@@ -180,7 +171,7 @@ function findSlots(tree, source, sourcePath, chain) {
       defaultSlot = node;
     }
     if ((node.childNodes ?? []).some(nodeIsMeaningful)) {
-      throw sourceError(sourcePath, node, "slot fallback content is not supported", chain);
+      throw sourceError(sourcePath, node, "content inside a slot declaration is not supported", chain);
     }
 
     names.set(node, name);
@@ -199,7 +190,7 @@ function findSlots(tree, source, sourcePath, chain) {
 
 function validateAuthoredRoot(tree, sourcePath, chain) {
   let hasBehaviorOrStyles = false;
-  walk(tree, (node) => {
+  walkTree(tree, (node) => {
     if (node.tagName === "style" || (node.tagName === "script" && scriptKind(node))) {
       hasBehaviorOrStyles = true;
     }

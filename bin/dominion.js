@@ -74,8 +74,9 @@ function parseDevArgs(args) {
 
 async function readConfig(rootDir) {
   const configPath = path.join(rootDir, "dominion.config.json");
+  let config;
   try {
-    return JSON.parse(await readFile(configPath, "utf8"));
+    config = JSON.parse(await readFile(configPath, "utf8"));
   } catch (error) {
     if (error.code === "ENOENT") {
       return {};
@@ -85,6 +86,13 @@ async function readConfig(rootDir) {
     }
     throw error;
   }
+  if (!config || Array.isArray(config) || typeof config !== "object") {
+    throw new Error("dominion.config.json must contain a JSON object");
+  }
+  if (Object.hasOwn(config, "basePath") && typeof config.basePath !== "string") {
+    throw new Error("dominion.config.json basePath must be a string");
+  }
+  return config;
 }
 
 async function main(args) {
@@ -115,12 +123,6 @@ async function main(args) {
     }
     const rootDir = process.cwd();
     const config = await readConfig(rootDir);
-    if (!config || Array.isArray(config) || typeof config !== "object") {
-      throw new Error("dominion.config.json must contain a JSON object");
-    }
-    if (Object.hasOwn(config, "basePath") && typeof config.basePath !== "string") {
-      throw new Error("dominion.config.json basePath must be a string");
-    }
     const basePath = normalizeBasePath(options.basePath ?? config.basePath ?? "/");
     const result = await startDevServer({ rootDir, basePath, port: options.port ?? 3000 });
     process.stdout.write(`Built ${result.pageCount} page(s) and ${result.assetCount} asset(s) to dist/\n`);
@@ -139,12 +141,6 @@ async function main(args) {
 
   const rootDir = process.cwd();
   const config = await readConfig(rootDir);
-  if (!config || Array.isArray(config) || typeof config !== "object") {
-    throw new Error("dominion.config.json must contain a JSON object");
-  }
-  if (Object.hasOwn(config, "basePath") && typeof config.basePath !== "string") {
-    throw new Error("dominion.config.json basePath must be a string");
-  }
   const basePath = normalizeBasePath(options.basePath ?? config.basePath ?? "/");
   const result = await buildProject({ rootDir, basePath });
   process.stdout.write(`Built ${result.pageCount} page(s) and ${result.assetCount} asset(s) to dist/\n`);

@@ -21,8 +21,8 @@
         <section class="mt-10 border-t border-line pt-5" aria-labelledby="instance">
           <h2 id="instance" class="font-display text-2xl">Instances and roots</h2>
           <p class="mt-3 leading-7 text-muted">Two includes of the same script-bearing fragment create two independent initializations and private script scopes. Each executable script gets a local <code>root</code> reference to that instance's one authored root. Nested fragment roots belong to their own instances.</p>
-          <p class="mt-3 leading-7 text-muted">A fragment with scripts or a custom <code>&lt;style&gt;</code> block must have exactly one authored root. A static fragment without either can emit multiple roots. DOMinion removes the include placeholder; it does not add a layout wrapper or leave a browser-side component.</p>
-          <dominion-callout><span slot="label">Keep fragments dumb</span><p>Use them to reuse stable markup such as navigation, callouts, and example framing. The caller supplies content through slots; MVP does not bind fragment properties or handlers.</p></dominion-callout>
+          <p class="mt-3 leading-7 text-muted">A fragment with scripts or a custom <code>&lt;style&gt;</code> block must have exactly one authored root. A static fragment without either can emit multiple roots. DOMinion removes the include placeholder; it does not add a layout wrapper or leave a browser-managed element behind.</p>
+          <dominion-callout><span slot="label">Keep fragments dumb</span><p>Use them to reuse stable markup such as navigation, callouts, and example framing. The caller supplies content through content slots; MVP does not bind data or handlers.</p></dominion-callout>
         </section>
         <section class="mt-10 border-t border-line pt-5" aria-labelledby="slots">
           <h2 id="slots" class="font-display text-2xl">Named and default slots</h2>
@@ -33,7 +33,7 @@
   &lt;p&gt;&lt;slot name="label" #required&gt;&lt;/slot&gt;&lt;/p&gt;
   &lt;div&gt;&lt;slot name="body" #default #required&gt;&lt;/slot&gt;&lt;/div&gt;
 &lt;/div&gt;</code></pre>
-            <span slot="caption">This matches the site's actual <code>shared/callout.html</code>. A declaration is empty: fallback content is not supported.</span>
+            <span slot="caption">This matches the site's actual <code>shared/callout.html</code>. A declaration is empty: content inside a slot declaration is not supported.</span>
           </dominion-example-frame>
           <dominion-example-frame>
             <span slot="title">Caller content</span>
@@ -49,14 +49,14 @@
         <section class="mt-10 border-t border-line pt-5" aria-labelledby="required">
           <h2 id="required" class="font-display text-2xl">Required is structural</h2>
           <p class="mt-3 leading-7 text-muted">Mark a slot with <code>#required</code> when its caller must supply at least one element or non-whitespace text node. Comments and formatting whitespace do not count. The check is structural: an empty element, hidden element, or <code>&lt;template&gt;</code> still counts as supplied content. It does not promise visible text or runtime data.</p>
-          <dominion-callout><span slot="label">Build-time validation</span><p>Omitting content for a required slot stops the build with a source location and include chain. Optional slots have no fallback markup.</p></dominion-callout>
+          <dominion-callout><span slot="label">Build-time validation</span><p>Omitting content for a required slot stops the build with a source location and include chain. Optional slots emit nothing when unfilled.</p></dominion-callout>
         </section>
         <section class="mt-10 border-t border-line pt-5" aria-labelledby="live">
           <h2 id="live" class="font-display text-2xl">Working instances</h2>
           <p class="mt-3 leading-7 text-muted">This capture is from the compiled example route. The two repeated cards are separate instances; each has its own nested accent marker and state control.</p>
           <figure class="my-6 border border-line bg-white p-2">
             <img class="h-auto w-full" src="/images/instance-lab.png" alt="Compiled DOMinion example showing two repeated cards, their nested accent markers, and independent state controls" width="1440" height="1000" loading="lazy">
-            <figcaption class="px-2 py-3 text-xs leading-5 text-muted">Rendered by the actual example page, not a component mockup. Open the <a class="font-semibold text-moss underline" href="/examples/">runnable instance lab</a>.</figcaption>
+            <figcaption class="px-2 py-3 text-xs leading-5 text-muted">Rendered by the actual example page, not a static mockup. Open the <a class="font-semibold text-moss underline" href="/examples/">runnable instance lab</a>.</figcaption>
           </figure>
         </section>
       </article>

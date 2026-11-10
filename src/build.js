@@ -5,6 +5,7 @@ import { parse, serialize } from "parse5";
 import { expandSharedFragments } from "./fragments.js";
 import { emitFragmentScripts } from "./scripts.js";
 import { generatePageCss as generateTailwindCss } from "./styles.js";
+import { walkTree } from "./tree.js";
 
 const URL_ATTRIBUTES = new Set([
   "action",
@@ -102,7 +103,7 @@ function rewriteRootUrls(html, basePath) {
       : value;
   };
 
-  function visit(node) {
+  walkTree(document, (node) => {
     if (node.attrs) {
       for (const attribute of node.attrs) {
         if (URL_ATTRIBUTES.has(attribute.name)) {
@@ -122,14 +123,7 @@ function rewriteRootUrls(html, basePath) {
         }
       }
     }
-    for (const child of node.childNodes ?? []) {
-      visit(child);
-    }
-    if (node.content) {
-      visit(node.content);
-    }
-  }
-  visit(document);
+  });
   return serialize(document);
 }
 

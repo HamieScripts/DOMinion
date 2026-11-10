@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { parse } from "parse5";
 import { buildProject } from "../src/build.js";
+import { walkTree } from "../src/tree.js";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pagePaths = [
@@ -29,16 +30,6 @@ const runtimeFreePages = new Set([
   "guide/styling/index.html",
   "guide/deployment/index.html",
 ]);
-
-function walk(node, visit) {
-  visit(node);
-  for (const child of node.childNodes ?? []) {
-    walk(child, visit);
-  }
-  if (node.content) {
-    walk(node.content, visit);
-  }
-}
 
 function listOutputFiles(directory, prefix = "") {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -65,7 +56,7 @@ function inspectPage(outputPath, basePath) {
   const html = readFileSync(outputPath, "utf8");
   const tree = parse(html);
   const elements = [];
-  walk(tree, (node) => {
+  walkTree(tree, (node) => {
     if (node.tagName) {
       elements.push(node);
     }
@@ -114,7 +105,7 @@ function inspectPage(outputPath, basePath) {
     if (target.hash && targetPath.endsWith(".html")) {
       const targetTree = parse(readFileSync(targetPath, "utf8"));
       const targetIds = new Set();
-      walk(targetTree, (node) => {
+      walkTree(targetTree, (node) => {
         for (const attribute of node.attrs ?? []) {
           if (attribute.name === "id") {
             targetIds.add(attribute.value);
@@ -186,7 +177,7 @@ test("compiled examples initialize repeated instances and run every timing polic
   const exampleTree = parse(exampleDom);
   const exampleElements = [];
   const exampleText = [];
-  walk(exampleTree, (node) => {
+  walkTree(exampleTree, (node) => {
     if (node.tagName) {
       exampleElements.push(node);
     }
