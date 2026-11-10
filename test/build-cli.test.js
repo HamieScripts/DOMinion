@@ -365,6 +365,7 @@ document.getElementById("computed").textContent = JSON.stringify({
   const pagePath = path.join(root, "dist/index.html");
   const browserResult = spawnSync(browser, [
     "--headless",
+    "--no-sandbox",
     "--disable-gpu",
     "--no-first-run",
     "--no-default-browser-check",
