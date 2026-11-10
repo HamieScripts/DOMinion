@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse, parseFragment } from "parse5";
+import { scriptKind } from "./scripts.js";
 
 const FRAGMENT_NAME = /^dominion-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
@@ -199,7 +200,7 @@ function findSlots(tree, source, sourcePath, chain) {
 function validateAuthoredRoot(tree, sourcePath, chain) {
   let hasBehaviorOrStyles = false;
   walk(tree, (node) => {
-    if (node.tagName === "script" || node.tagName === "style") {
+    if (node.tagName === "style" || (node.tagName === "script" && scriptKind(node))) {
       hasBehaviorOrStyles = true;
     }
   });

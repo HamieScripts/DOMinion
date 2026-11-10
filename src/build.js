@@ -3,6 +3,7 @@ import path from "node:path";
 import parseSrcset from "parse-srcset";
 import { parse, serialize } from "parse5";
 import { expandSharedFragments } from "./fragments.js";
+import { emitFragmentScripts } from "./scripts.js";
 
 const URL_ATTRIBUTES = new Set([
   "action",
@@ -220,7 +221,7 @@ async function replaceOutput(outputDir, planned) {
 export async function buildProject({ rootDir = process.cwd(), basePath = "", pipeline = {} } = {}) {
   const stages = {
     expandFragments: pipeline.expandFragments ?? (async (html, context) => expandSharedFragments(html, rootDir, context)),
-    emitScripts: pipeline.emitScripts ?? (async (html) => html),
+    emitScripts: pipeline.emitScripts ?? (async (html, context) => emitFragmentScripts(html, context)),
     generatePageCss: pipeline.generatePageCss ?? (async (html) => html),
   };
   const normalizedBasePath = normalizeBasePath(basePath || "/");
