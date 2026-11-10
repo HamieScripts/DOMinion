@@ -219,6 +219,28 @@ test("dev serves production output and rebuilds all watched project inputs", asy
   await waitFor(async () => (await getText(`${prefix}/`)).text.includes("Recovered"), "preview did not recover after the build error");
 });
 
+test("dev resumes watching a nested source directory after it is recreated", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "dominion-build-"));
+  let dev;
+  t.after(async () => {
+    if (dev) {
+      await dev.close();
+    }
+    rmSync(root, { recursive: true, force: true });
+  });
+  writeProjectFile(root, "src/index.html", "<h1>Home</h1>\n");
+  writeProjectFile(root, "src/about/index.html", "<h1>Original page</h1>\n");
+  dev = await startDevServer({ rootDir: root, port: 0 });
+
+  assert.match((await getText(`${dev.url}about/`)).text, /Original page/);
+  rmSync(path.join(root, "src/about"), { recursive: true });
+  mkdirSync(path.join(root, "src/about"));
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  writeProjectFile(root, "src/about/index.html", "<h1>Recreated page</h1>\n");
+
+  await waitFor(async () => (await getText(`${dev.url}about/`)).text.includes("Recreated page"), "preview did not rebuild an edit in a recreated directory");
+});
+
 test("CLI shows help and exits nonzero for an invalid deployment base path", (t) => {
   const root = createProject(t);
   const helpResult = spawnSync(process.execPath, [cliPath, "--help"], { encoding: "utf8" });

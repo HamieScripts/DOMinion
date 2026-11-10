@@ -99,9 +99,20 @@ function createRequestHandler(distDir, basePath, withOutputAccess) {
   };
 }
 
-async function watchTree(directory, onChange, watchers, visited = new Set()) {
+function closeWatchedTree(directory, watchers, directoryWatchers) {
   const absoluteDirectory = path.resolve(directory);
-  if (visited.has(absoluteDirectory)) {
+  for (const [watchedDirectory, watcher] of directoryWatchers) {
+    if (watchedDirectory === absoluteDirectory || watchedDirectory.startsWith(`${absoluteDirectory}${path.sep}`)) {
+      directoryWatchers.delete(watchedDirectory);
+      watchers.delete(watcher);
+      watcher.close();
+    }
+  }
+}
+
+async function watchTree(directory, onChange, watchers, directoryWatchers) {
+  const absoluteDirectory = path.resolve(directory);
+  if (directoryWatchers.has(absoluteDirectory)) {
     return;
   }
 
@@ -119,21 +130,26 @@ async function watchTree(directory, onChange, watchers, visited = new Set()) {
     throw error;
   }
 
-  visited.add(absoluteDirectory);
   const watcher = watch(absoluteDirectory, (eventType, filename) => {
     onChange();
     if (eventType === "rename" && filename) {
-      void watchTree(path.join(absoluteDirectory, filename.toString()), onChange, watchers, visited);
+      const changedPath = path.join(absoluteDirectory, filename.toString());
+      closeWatchedTree(changedPath, watchers, directoryWatchers);
+      void watchTree(changedPath, onChange, watchers, directoryWatchers);
     }
   });
+  directoryWatchers.set(absoluteDirectory, watcher);
   watcher.on("error", (error) => {
+    if (directoryWatchers.get(absoluteDirectory) === watcher) {
+      closeWatchedTree(absoluteDirectory, watchers, directoryWatchers);
+    }
     process.stderr.write(`dominion dev: watch failed for ${absoluteDirectory}: ${error.message}\n`);
   });
-  watchers.push(watcher);
+  watchers.add(watcher);
 
   await Promise.all(entries
     .filter((entry) => entry.isDirectory())
-    .map((entry) => watchTree(path.join(absoluteDirectory, entry.name), onChange, watchers, visited)));
+    .map((entry) => watchTree(path.join(absoluteDirectory, entry.name), onChange, watchers, directoryWatchers)));
 }
 
 function listen(server, port) {
@@ -175,14 +191,22 @@ export async function startDevServer({ rootDir = process.cwd(), basePath = "/", 
   let buildTimer;
   let building = false;
   let rebuildPending = false;
+  let closing = false;
+  let activeBuild = Promise.resolve();
   const scheduleBuild = () => {
+    if (closing) {
+      return;
+    }
     clearTimeout(buildTimer);
     buildTimer = setTimeout(() => {
+      if (closing) {
+        return;
+      }
       if (building) {
         rebuildPending = true;
         return;
       }
-      void rebuild();
+      activeBuild = rebuild();
     }, 100);
   };
   const rebuild = async () => {
@@ -199,22 +223,25 @@ export async function startDevServer({ rootDir = process.cwd(), basePath = "/", 
     building = false;
   };
 
-  const watchers = [];
+  const watchers = new Set();
+  const directoryWatchers = new Map();
   const rootWatcher = watch(rootDir, (eventType, filename) => {
     const changedPath = filename?.toString();
     if (changedPath === "tailwind.css" || changedPath === "dominion.config.json") {
       scheduleBuild();
     } else if (["src", "shared", "public"].includes(changedPath)) {
-      void watchTree(path.join(rootDir, changedPath), scheduleBuild, watchers);
+      const directory = path.join(rootDir, changedPath);
+      closeWatchedTree(directory, watchers, directoryWatchers);
+      void watchTree(directory, scheduleBuild, watchers, directoryWatchers);
       scheduleBuild();
     }
   });
   rootWatcher.on("error", (error) => {
     process.stderr.write(`dominion dev: project watch failed: ${error.message}\n`);
   });
-  watchers.push(rootWatcher);
+  watchers.add(rootWatcher);
   await Promise.all(["src", "shared", "public"].map((directory) => (
-    watchTree(path.join(rootDir, directory), scheduleBuild, watchers)
+    watchTree(path.join(rootDir, directory), scheduleBuild, watchers, directoryWatchers)
   )));
 
   const url = `http://127.0.0.1:${actualPort}${normalizedBasePath || ""}/`;
@@ -223,10 +250,12 @@ export async function startDevServer({ rootDir = process.cwd(), basePath = "/", 
     port: actualPort,
     url,
     async close() {
+      closing = true;
       clearTimeout(buildTimer);
       for (const watcher of watchers) {
         watcher.close();
       }
+      await activeBuild;
       await new Promise((resolve) => server.close(resolve));
     },
   };
