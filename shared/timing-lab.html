@@ -1,0 +1,15 @@
+<section class="space-y-3 text-sm" aria-label="Live script timing results">
+  <p class="border-s-2 border-coral bg-paper px-3 py-2" data-immediate>Immediate result is pending.</p>
+  <script #immediate>
+root.querySelector("[data-immediate]").textContent = `Immediate ran while parsing (${document.readyState}); later sibling present: ${Boolean(root.querySelector("[data-after-immediate]"))}.`;
+  </script>
+  <p class="text-muted" data-after-immediate>The parser reaches this after the immediate block.</p>
+  <p class="border-s-2 border-moss bg-paper px-3 py-2" data-deferred>Deferred result is pending.</p>
+  <script #defer>
+root.querySelector("[data-deferred]").textContent = `Deferred ran after parsing (${document.readyState}).`;
+  </script>
+  <p class="border-s-2 border-brass bg-paper px-3 py-2" data-idle>Idle result is pending.</p>
+  <script #idle>
+root.querySelector("[data-idle]").textContent = `Idle became eligible after parsing (${document.readyState}).`;
+  </script>
+</section>

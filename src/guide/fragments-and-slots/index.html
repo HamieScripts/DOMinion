@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fragments and Slots | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-3xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 04</p>
+        <h1 id="fragments-and-slots" class="font-display text-4xl leading-tight sm:text-5xl">Fragments and slots</h1>
+        <p class="mt-4 text-lg leading-8 text-muted">A shared fragment is reusable HTML source. Every include becomes an independent fragment instance, expanded into its caller during the build.</p>
+        <details class="my-7 border-y border-line py-3 lg:hidden"><summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary><nav class="pt-3" aria-label="On this page"><ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#include">Include a fragment</a></li><li><a class="text-moss underline" href="#instance">Instance roots</a></li><li><a class="text-moss underline" href="#slots">Named and default slots</a></li><li><a class="text-moss underline" href="#required">Required slots</a></li><li><a class="text-moss underline" href="#live">Working instances</a></li></ul></nav></details>
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="include">
+          <h2 id="include" class="font-display text-2xl">Include a fragment</h2>
+          <p class="mt-3 leading-7 text-muted">A file named <code>shared/notice.html</code> is included as <code>&lt;dominion-notice&gt;&lt;/dominion-notice&gt;</code>. Use lowercase kebab-case names, no attributes, and explicit closing tags. Pages may include fragments, and fragments may include other fragments.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="instance">
+          <h2 id="instance" class="font-display text-2xl">Instances and roots</h2>
+          <p class="mt-3 leading-7 text-muted">Two includes of the same script-bearing fragment create two independent initializations and private script scopes. Each executable script gets a local <code>root</code> reference to that instance's one authored root. Nested fragment roots belong to their own instances.</p>
+          <p class="mt-3 leading-7 text-muted">A fragment with scripts or a custom <code>&lt;style&gt;</code> block must have exactly one authored root. A static fragment without either can emit multiple roots. DOMinion removes the include placeholder; it does not add a layout wrapper or leave a browser-managed element behind.</p>
+          <dominion-callout><span slot="label">Keep fragments dumb</span><p>Use them to reuse stable markup such as navigation, callouts, and example framing. The caller supplies content through content slots; MVP does not bind data or handlers.</p></dominion-callout>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="slots">
+          <h2 id="slots" class="font-display text-2xl">Named and default slots</h2>
+          <p class="mt-3 leading-7 text-muted">Declare named insertion points in the fragment. Direct supplied elements use <code>slot="name"</code>; one named slot may be marked <code>#default</code> to receive unassigned content.</p>
+          <dominion-example-frame>
+            <span slot="title">Fragment declaration</span>
+            <pre><code>&lt;div class="callout"&gt;
+  &lt;p&gt;&lt;slot name="label" #required&gt;&lt;/slot&gt;&lt;/p&gt;
+  &lt;div&gt;&lt;slot name="body" #default #required&gt;&lt;/slot&gt;&lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            <span slot="caption">This matches the site's actual <code>shared/callout.html</code>. A declaration is empty: content inside a slot declaration is not supported.</span>
+          </dominion-example-frame>
+          <dominion-example-frame>
+            <span slot="title">Caller content</span>
+            <pre><code>&lt;dominion-callout&gt;
+  &lt;strong slot="label"&gt;Before you start&lt;/strong&gt;
+  &lt;p&gt;Unassigned content goes to the default body slot.&lt;/p&gt;
+  &lt;p slot="body"&gt;Explicitly assigned body content follows in source order.&lt;/p&gt;
+&lt;/dominion-callout&gt;</code></pre>
+            <span slot="caption">Slot assignment attributes are consumed during expansion. Nested fragment includes in supplied content are expanded too.</span>
+          </dominion-example-frame>
+          <p class="leading-7 text-muted">Explicit and default content assigned to the same slot keep their source order. Unfilled optional slots emit nothing. Meaningful unassigned content without a default slot, duplicate slot names, multiple defaults, and unknown destinations fail the build.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="required">
+          <h2 id="required" class="font-display text-2xl">Required is structural</h2>
+          <p class="mt-3 leading-7 text-muted">Mark a slot with <code>#required</code> when its caller must supply at least one element or non-whitespace text node. Comments and formatting whitespace do not count. The check is structural: an empty element, hidden element, or <code>&lt;template&gt;</code> still counts as supplied content. It does not promise visible text or runtime data.</p>
+          <dominion-callout><span slot="label">Build-time validation</span><p>Omitting content for a required slot stops the build with a source location and include chain. Optional slots emit nothing when unfilled.</p></dominion-callout>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="live">
+          <h2 id="live" class="font-display text-2xl">Working instances</h2>
+          <p class="mt-3 leading-7 text-muted">This capture is from the compiled example route. The two repeated cards are separate instances; each has its own nested accent marker and state control.</p>
+          <figure class="my-6 border border-line bg-white p-2">
+            <img class="h-auto w-full" src="/images/instance-lab.png" alt="Compiled DOMinion example showing two repeated cards, their nested accent markers, and independent state controls" width="1440" height="1000" loading="lazy">
+            <figcaption class="px-2 py-3 text-xs leading-5 text-muted">Rendered by the actual example page, not a static mockup. Open the <a class="font-semibold text-moss underline" href="/examples/">runnable instance lab</a>.</figcaption>
+          </figure>
+        </section>
+      </article>
+      <aside class="hidden lg:block"><nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page"><p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p><ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#include">Include a fragment</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#instance">Instance roots</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#slots">Named and default slots</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#required">Required slots</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#live">Working instances</a></li></ul></nav></aside>
+    </div>
+    <footer class="mt-14 flex justify-between border-t border-line pt-5 text-sm"><a class="text-moss underline-offset-4 hover:underline" href="/guide/routing/">&larr; Routing</a><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/guide/styling/">Next: Styling &rarr;</a></footer>
+  </main>
+</body>
+</html>

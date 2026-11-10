@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Routing and URLs | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-3xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 03</p>
+        <h1 id="routing-and-urls" class="font-display text-4xl leading-tight sm:text-5xl">Routing and URLs</h1>
+        <p class="mt-4 text-lg leading-8 text-muted">Static routing follows output filenames. Choose explicit paths, then decide whether links are relative to the document or anchored at the site's root.</p>
+        <details class="my-7 border-y border-line py-3 lg:hidden"><summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary><nav class="pt-3" aria-label="On this page"><ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#path-mapping">Path mapping</a></li><li><a class="text-moss underline" href="#url-kinds">URL kinds</a></li><li><a class="text-moss underline" href="#prefix">Deployment prefixes</a></li></ul></nav></details>
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="path-mapping">
+          <h2 id="path-mapping" class="font-display text-2xl">Path mapping</h2>
+          <p class="mt-3 leading-7 text-muted">For a page at <code>src/reference/index.html</code>, link to <code>/reference/</code> on directory-index hosting. For a page at <code>src/faq.html</code>, link to <code>/faq.html</code>. There is no implicit extension removal, route fallback, or browser router.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>&lt;a href="/guide/routing/"&gt;Routing guide&lt;/a&gt;
+&lt;a href="../faq.html"&gt;FAQ beside this output page&lt;/a&gt;</code></pre>
+          <p class="mt-3 leading-7 text-muted">The relative link above is resolved against the generated document location. Moving a fragment to another page does not change how a browser resolves a relative URL in its expanded markup.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="url-kinds">
+          <h2 id="url-kinds" class="font-display text-2xl">URL kinds</h2>
+          <ul class="mt-3 space-y-3 leading-7 text-muted"><li><strong class="text-ink">Site-root URL:</strong> <code>/images/mark.png</code> starts at the hosted site root. DOMinion prefixes local root URLs during build.</li><li><strong class="text-ink">Relative URL:</strong> <code>images/mark.png</code> is interpreted from the output document's directory by the browser.</li><li><strong class="text-ink">External URL:</strong> <code>https://example.test/guide</code> remains external and is not converted into a local path.</li></ul>
+          <dominion-callout><span slot="label">Fragment paths are not URL bases</span><p>A relative image URL in a shared fragment is not made relative to <code>shared/</code>. Prefer an absolute site-root URL when an asset is shared across routes.</p></dominion-callout>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="prefix">
+          <h2 id="prefix" class="font-display text-2xl">Deployment prefixes</h2>
+          <p class="mt-3 leading-7 text-muted">For a GitHub Pages project site hosted at <code>https://account.github.io/DOMinion/</code>, set the base path to <code>/DOMinion/</code>. Write internal site-root links as if the site lived at <code>/</code>; the build prefixes them once.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>{
+  "basePath": "/DOMinion/"
+}
+
+npm run build</code></pre>
+          <p class="mt-3 leading-7 text-muted">A command-line <code>--base-path</code> overrides the config for one build. The same source can therefore be previewed at root locally and emitted under a project prefix for deployment.</p>
+        </section>
+      </article>
+      <aside class="hidden lg:block"><nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page"><p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p><ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#path-mapping">Path mapping</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#url-kinds">URL kinds</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#prefix">Deployment prefixes</a></li></ul></nav></aside>
+    </div>
+    <footer class="mt-14 flex justify-between border-t border-line pt-5 text-sm"><a class="text-moss underline-offset-4 hover:underline" href="/guide/project-structure/">&larr; Project structure</a><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/guide/fragments-and-slots/">Next: Fragments and slots &rarr;</a></footer>
+  </main>
+</body>
+</html>

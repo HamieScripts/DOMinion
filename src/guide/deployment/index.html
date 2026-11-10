@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deployment | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-3xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 07</p>
+        <h1 id="deployment" class="font-display text-4xl leading-tight sm:text-5xl">Deployment</h1>
+        <p class="mt-4 text-lg leading-8 text-muted">Build once into <code>dist/</code>, then publish those files to any static host that serves HTML, CSS, assets, and browser JavaScript.</p>
+        <details class="my-7 border-y border-line py-3 lg:hidden"><summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary><nav class="pt-3" aria-label="On this page"><ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#local">Local root deployment</a></li><li><a class="text-moss underline" href="#github-pages">GitHub Pages project site</a></li><li><a class="text-moss underline" href="#publish">Publish output</a></li><li><a class="text-moss underline" href="#check">Before release</a></li></ul></nav></details>
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="local">
+          <h2 id="local" class="font-display text-2xl">Local root deployment</h2>
+          <p class="mt-3 leading-7 text-muted">The checked-in config uses <code>"basePath": "/"</code>. Build and preview from the project root:</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>npm run build
+npm run dev</code></pre>
+          <p class="mt-3 leading-7 text-muted">The preview URL printed by <code>dominion dev</code> serves generated output. For a production-like static check, serve <code>dist/</code> with your chosen local HTTP server; opening unbuilt source files skips fragment and script compilation.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="github-pages">
+          <h2 id="github-pages" class="font-display text-2xl">GitHub Pages project site</h2>
+          <p class="mt-3 leading-7 text-muted">A repository site is mounted below the account host at <code>/REPOSITORY/</code>. Configure that exact prefix, including the leading and trailing slash, before building.</p>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>{
+  "basePath": "/DOMinion/"
+}
+
+npm run build</code></pre>
+          <p class="mt-3 leading-7 text-muted">Alternatively, set the value for one build with <code>npm run build -- --base-path /DOMinion/</code>. CLI options override config. The docs pages author links from site root; DOMinion prefixes local root URLs in HTML attributes, including image sources, while leaving external URLs untouched.</p>
+          <dominion-callout><span slot="label">Keep one source tree</span><p>Use <code>"basePath": "/"</code> for a root-mounted site or local preview. Change the config for Pages, or pass its command-line override; do not hand-edit every link for a deployment prefix.</p></dominion-callout>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="publish">
+          <h2 id="publish" class="font-display text-2xl">Publish output</h2>
+          <p class="mt-3 leading-7 text-muted">Run the build in your release process and publish the resulting <code>dist/</code> directory. The hosting configuration must preserve its directory structure so paths such as <code>guide/styling/index.html</code> remain available at <code>/guide/styling/</code>. No Node.js process is needed after those files are deployed.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="check">
+          <h2 id="check" class="font-display text-2xl">Before release</h2>
+          <ul class="mt-3 list-disc space-y-2 ps-5 leading-7 text-muted"><li>Build after edits and browse the generated output.</li><li>Verify the configured base path matches the host mount point exactly.</li><li>Check nested pages, page links, and public assets at the deployed prefix.</li><li>Confirm your host publishes <code>dist/</code>, not <code>src/</code> or <code>shared/</code>.</li></ul>
+        </section>
+      </article>
+      <aside class="hidden lg:block"><nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page"><p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p><ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#local">Local root deployment</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#github-pages">GitHub Pages project site</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#publish">Publish output</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#check">Before release</a></li></ul></nav></aside>
+    </div>
+    <footer class="mt-14 flex justify-between border-t border-line pt-5 text-sm"><a class="text-moss underline-offset-4 hover:underline" href="/guide/script-timing/">&larr; Script timing</a><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/examples/">Next: Runnable examples &rarr;</a></footer>
+  </main>
+</body>
+</html>

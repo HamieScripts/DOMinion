@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Structure | DOMinion Documentation</title>
+</head>
+<body class="min-h-screen bg-paper font-body text-ink antialiased">
+  <dominion-site-nav></dominion-site-nav>
+  <main id="top" class="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
+    <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-16">
+      <article class="min-w-0 max-w-3xl">
+        <p class="mb-3 text-xs font-bold uppercase text-moss">Field guide / 02</p>
+        <h1 id="project-structure" class="font-display text-4xl leading-tight sm:text-5xl">Project structure</h1>
+        <p class="mt-4 text-lg leading-8 text-muted">The directories separate published pages, reusable source, and files copied through to the output.</p>
+        <details class="my-7 border-y border-line py-3 lg:hidden"><summary class="cursor-pointer font-semibold focus-visible:outline-2 focus-visible:outline-coral">On this page</summary><nav class="pt-3" aria-label="On this page"><ul class="space-y-2 text-sm"><li><a class="text-moss underline" href="#layout">Directory layout</a></li><li><a class="text-moss underline" href="#pages">Pages and routes</a></li><li><a class="text-moss underline" href="#shared">Shared source</a></li><li><a class="text-moss underline" href="#public">Public files</a></li></ul></nav></details>
+        <section class="mt-10 border-t-2 border-ink pt-5" aria-labelledby="layout">
+          <h2 id="layout" class="font-display text-2xl">Directory layout</h2>
+          <pre class="mt-4 overflow-x-auto bg-ink px-4 py-4 font-code text-sm leading-6 text-white"><code>project/
+|-- dominion.config.json
+|-- tailwind.css
+|-- src/                  # Pages, mapped to output paths
+|-- shared/               # Flat reusable HTML source
+|-- public/               # Files copied to the output root
+`-- dist/                  # Generated site; build before browsing</code></pre>
+          <p class="mt-4 leading-7 text-muted">Only HTML files under <code>src/</code> become pages. The build preserves each relative path, and copies <code>public/</code> files without interpreting them.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="pages">
+          <h2 id="pages" class="font-display text-2xl">Pages and routes</h2>
+          <p class="mt-3 leading-7 text-muted">A source file's path is its output path; DOMinion does not infer clean URLs or add a client-side router.</p>
+          <ul class="mt-3 space-y-2 text-sm leading-6 text-muted"><li><code>src/index.html</code> becomes <code>dist/index.html</code>, served at <code>/</code>.</li><li><code>src/help.html</code> becomes <code>dist/help.html</code>, served at <code>/help.html</code>.</li><li><code>src/reference/index.html</code> becomes <code>dist/reference/index.html</code>, served by directory-index hosts at <code>/reference/</code>.</li></ul>
+          <dominion-callout><span slot="label">Browse generated pages</span><p>Build first and serve <code>dist/</code>. Source-only fragment tags are not meaningful browser routes.</p></dominion-callout>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="shared">
+          <h2 id="shared" class="font-display text-2xl">Shared source</h2>
+          <p class="mt-3 leading-7 text-muted">The flat <code>shared/</code> directory holds fragments. <code>shared/site-nav.html</code> is included with <code>&lt;dominion-site-nav&gt;&lt;/dominion-site-nav&gt;</code>. Pages and fragments can include other fragments; inclusion nesting is supported even though nested folders in <code>shared/</code> are not.</p>
+          <p class="mt-3 leading-7 text-muted">Fragments are expanded into their callers at build time. They are not copied as standalone output documents, and their custom-element placeholders do not remain in published HTML.</p>
+        </section>
+        <section class="mt-10 border-t border-line pt-5" aria-labelledby="public">
+          <h2 id="public" class="font-display text-2xl">Public files</h2>
+          <p class="mt-3 leading-7 text-muted"><code>public/images/diagram.png</code> is copied to <code>dist/images/diagram.png</code>. Root URLs such as <code>/images/diagram.png</code> can be adjusted for a deployment prefix; ordinary relative URLs are resolved by the browser against the generated page's URL, not the fragment source file.</p>
+        </section>
+      </article>
+      <aside class="hidden lg:block"><nav class="sticky top-28 border-s border-line ps-5" aria-label="On this page"><p class="mb-3 text-xs font-bold uppercase text-muted">On this page</p><ul class="space-y-3 text-sm"><li><a class="text-moss underline-offset-4 hover:underline" href="#layout">Directory layout</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#pages">Pages and routes</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#shared">Shared source</a></li><li><a class="text-moss underline-offset-4 hover:underline" href="#public">Public files</a></li></ul></nav></aside>
+    </div>
+    <footer class="mt-14 flex justify-between border-t border-line pt-5 text-sm"><a class="text-moss underline-offset-4 hover:underline" href="/">&larr; Getting started</a><a class="font-semibold text-moss underline-offset-4 hover:underline" href="/guide/routing/">Next: Routing &rarr;</a></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run unit, integration, and browser tests
+        run: npm test
+
+      - name: Build root-hosted documentation
+        run: npm run build
+
+      - name: Build project-hosted documentation
+        run: npm run build:pages
+
+      - name: Retain release screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-verification-screenshots
+          path: test-results/release-verification/*.png
+          if-no-files-found: warn
+          retention-days: 14

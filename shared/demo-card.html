@@ -1,0 +1,41 @@
+<article class="demo-card border border-line bg-white p-4 sm:p-5">
+  <p class="text-xs font-bold uppercase text-muted">Example <slot name="label" #required></slot></p>
+  <div class="mt-2 font-display text-xl"><slot name="title" #required></slot></div>
+  <div class="my-4 min-h-16 border-y border-line py-3" data-state-output aria-live="polite"></div>
+  <button class="inline-flex min-h-10 items-center border border-moss px-3 text-sm font-semibold text-moss hover:bg-moss hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral" type="button" data-next-state>Cycle state</button>
+  <div class="mt-4 text-sm leading-6 text-muted"><slot name="body" #default #required></slot></div>
+  <div class="mt-4 text-xs text-muted"><span>Nested instance:</span> <dominion-demo-stamp><span>accent inherited across the scope boundary</span></dominion-demo-stamp></div>
+  <template data-state="waiting"><p class="border-s-2 border-sky bg-sky/10 px-3 py-2 text-sm text-sky">Waiting for data</p></template>
+  <template data-state="ready"><p class="border-s-2 border-moss bg-moss/10 px-3 py-2 text-sm text-moss">Data is ready</p></template>
+  <template data-state="empty"><p class="border-s-2 border-brass bg-brass/10 px-3 py-2 text-sm text-brass">No items to show</p></template>
+  <template data-state="error"><p class="border-s-2 border-coral bg-coral/10 px-3 py-2 text-sm text-coral">Could not load data</p></template>
+<style>
+.demo-card {
+  --demo-accent: var(--color-coral);
+  border-top: 3px solid var(--demo-accent);
+}
+.demo-card h3 {
+  color: var(--demo-accent);
+}
+.demo-card .slot-copy {
+  border-inline-start: 2px solid var(--demo-accent);
+  padding-inline-start: 0.75rem;
+}
+</style>
+</article>
+<script>
+const output = root.querySelector("[data-state-output]");
+const states = [...root.querySelectorAll("template[data-state]")];
+const button = root.querySelector("[data-next-state]");
+let stateIndex = 0;
+const showState = () => {
+  const state = states[stateIndex];
+  output.replaceChildren(state.content.cloneNode(true));
+  root.dataset.state = state.dataset.state;
+};
+button.addEventListener("click", () => {
+  stateIndex = (stateIndex + 1) % states.length;
+  showState();
+});
+showState();
+</script>

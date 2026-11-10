@@ -1,0 +1,30 @@
+{
+  "name": "dominion",
+  "version": "0.1.0",
+  "description": "Build-time tooling for HTML-first static websites",
+  "type": "module",
+  "bin": {
+    "dominion": "./bin/dominion.js"
+  },
+  "scripts": {
+    "build": "node bin/dominion.js build",
+    "build:pages": "node bin/dominion.js build --base-path /DOMinion/",
+    "test:unit": "node --test test/build-cli.test.js test/docs-site.test.js test/scripts.test.js",
+    "test:browser": "node --test test/release-browser.test.js",
+    "test": "npm run test:unit && npm run test:browser"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.3.5",
+    "parse-srcset": "^1.0.2",
+    "parse5": "^8.0.0",
+    "postcss": "^8.5.32",
+    "postcss-selector-parser": "^7.2.0",
+    "tailwindcss": "^4.3.5"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0"
+  }
+}
